@@ -1,0 +1,11 @@
+window_sizes 1200 700 300 894 562 64
+diagrams
+  active  classdiagram_ref 128126 // overview
+    894 562 100 4 72 0
+end
+show_stereotypes
+selected operation_ref 137086 // get_row_names
+open
+  class_ref 128069 // LPModelFacade
+end
+end
