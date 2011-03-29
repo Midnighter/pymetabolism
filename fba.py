@@ -9,7 +9,8 @@ Flux Balance Analysis Model
 
 :Authors:
     Moritz Emanuel Beber
-    Alexandra Grigore
+    Alexandra Mirela Grigore
+    Nikolaus Sonnenschein
 :Date:
     2011-03-28
 :Copyright:
@@ -44,64 +45,64 @@ class FBAModel(object):
         """
         self._model = model
 
-    def delete_reaction(self,reaction_list):
+    def delete_reaction(self, reaction):
         """
         Takes a list of reactions and constrains their flux to zero.
 
         Parameters
         ----------
-        name: reaction_list type:list
-            description: list that contains the names of the reactions
+        reaction: iterable
+            iterable that contains the names of the reactions
         """
         reactions = dict()
-        for reaction in reaction_list:
-            reactions[reaction] = (0,0)
+        for reaction in reaction:
+            reactions[reaction] = (0, 0)
         self._model.modify_column_constraints(reactions)
 
-    def delete_reaction_from_stoich(self,reaction_list):
+    def delete_reaction_from_stoich(self, reaction):
         """
         Takes a list of metabolites and removes them from the stoichiometry matrix.
 
         Parameters
         ----------
-        name: reaction_list type:list
-            description: list that contains the names of the reactions
+        reaction: iterable
+            iterable that contains the names of the reactions
         """
-        self._model.delete_columns(reaction_list)        
+        self._model.delete_columns(reaction)
 
-    def delete_metabolite(self,metabolite_list):
+    def delete_metabolite(self, metabolite):
         """
         Takes a list of metabolites and constrains them to zero.
         Parameters
         ----------
-        name: metabolite_list type:list
-            description: list that contains the names of the metabolites
+        metabolite: iterable
+            iterable that contains the names of the compounds
         """
         metabolites = dict()
-        for metabolite in metabolite_list:
-            metabolites[metabolite] = (0,0)
+        for metabolite in metabolite:
+            metabolites[metabolite] = (0, 0)
         self._model.modify_row_constraints(metabolites)
 
-    def delete_metabolite_from_stoich(self, metabolite_list):
+    def delete_metabolite_from_stoich(self, metabolite):
         """
         Takes a list of metabolites and removes them from the stoichiometry matrix.
         Parameters
         ----------
-        name: metabolite_list type:list
+        name: metabolite iterable
             description: list that contains the names of the metabolites
         """
-        self._model.delete_rows(metabolite_list)
+        self._model.delete_rows(metabolite)
 
-    def free_metabolites(self, metabolite_list):
+    def free_metabolites(self, metabolite):
         """
         Takes a list of metabolites and removes their constraints.
         Parameters
         ----------
-        name: metabolite_list type:list
+        name: metabolite iterable
             description: list that contains the names of the metabolites
         """
         boundaries = dict()
-        for metabolite in metabolite_list:
+        for metabolite in metabolite:
             boundaries[metabolite] = (-numpy.inf, numpy.inf)
         self._model.modify_row_constraints(boundaries)
 
@@ -111,9 +112,9 @@ class FBAModel(object):
         the respective boundary conditions.
         Parameters
         ----------
-        name: bounds_list type:dictionary
+        bounds : dictionary
             description: key = name of reaction, values = tuples of lower and
-        upper bounds for the flux
+            upper bounds for the flux
         """
         self._model.modify_column_constraints(self, bounds_dict)
 
@@ -123,38 +124,37 @@ class FBAModel(object):
         the respective boundary conditions.
         Parameters
         ----------
-        name: bounds_list type:dictionary
+        bounds : dictionary
             description: key = name of metabolite, values = tuples of lower and
-        upper bounds for the metabolite
+            upper bounds for the flux
         """
         self._model.modify_row_constraints(self, bounds_dict)
 
-    def add_metabolite_drains(self, metabolites):
+    def add_metabolite_drains(self, metabolites, suffix="_Drain"):
         """
         Takes a list of metabolites and adds reactions that consume those metabolites.
         Parameters
         ----------
-        name: metabolites type:list
+        metabolites : iterable
             description: list that contains the names of metabolites that
-        need to be exported
+            need to be exported
         """
-        suffix = "_Drain"
         new_columns = dict()
         coeff = dict()
         for met in metabolites:
             coeff[met][0]=-1
         for met in metabolites:
-            new_columns[met+suffix] = coeff[met]            
-        self._model.add_columns(new_columns)   
+            new_columns[met+suffix] = coeff[met]
+        self._model.add_columns(new_columns)
 
-    def add_transporters(self, metabolites):    
+    def add_transporters(self, metabolites):
         """
         Takes a list of metabolites and adds reactions that produce those metabolites.
         Parameters
         ----------
-        name: metabolites type:list
+        metabolites : iterable
             description: list that contains the names of metabolites that
-        need to be transported into the cell
+            need to be transported into the cell
         """
         suffix = "_Transp"
         new_columns = dict()
@@ -162,22 +162,20 @@ class FBAModel(object):
         for met in metabolites:
             coeff[met][0]=1
         for met in metabolites:
-            new_columns[met+suffix] = coeff[met]            
-        self._model.add_columns(new_columns)  
+            new_columns[met+suffix] = coeff[met]
+        self._model.add_columns(new_columns)
 
-    def get_reactions(self):
+    def get_reactions(self, drain="_Drain", transp="_Transp"):
         """
         Gets the list of all reactions (excluding transport and drain reactions).
 
         Returns
         -------
-        type:list
-            The returned list contains the names of all the reactions.        
+        iterable:
+            The returned list contains the names of all the reactions.
         """
         temp_react = set(self.get_column_names())
         temp_drain_transp = set()
-        drain = "_Drain"
-        transp = "_Transp"
         for react in temp_react:
             if drain in react or transp in react:
                 temp_drain_transp.add(react)
@@ -189,22 +187,21 @@ class FBAModel(object):
 
         Returns
         -------
-        type:list
-            The returned list contains the names of all the metabolites.        
+        iterable:
+            The returned list contains the names of all the metabolites.
         """
         return list(self.get_row_names())
-    
-    def get_transporters(self):
+
+    def get_transporters(self, transp="_Transp"):
         """
         Gets the list of all transporters.
 
         Returns
         -------
-        type:list
-            The returned list contains the names of all the transport reactions.        
+        iterable:
+            The returned list contains the names of all the transport reactions.
         """
         temp_transp = set()
-        transp = "_Transp"
         for react in set(self.get_column_names()):
             if transp in react:
                 temp_transp.add(react)
@@ -216,7 +213,7 @@ class FBAModel(object):
 
         Returns
         -------
-        type:tuple
+        tuple:
             The returned tuple contains the names of the substrates and the
             names of the products of the reaction.
         """

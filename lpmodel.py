@@ -10,6 +10,7 @@ LP Solver Interfaces
 :Authors:
     Moritz Emanuel Beber
     Alexandra Mirela Grigore
+    Nikolaus Sonnenschein
 :Date:
     2011-03-28
 :Copyright:
@@ -46,9 +47,9 @@ class LPModelFacade(object):
 
         Parameters
         ----------
-        name: str:
+        name: str
             Identifier for the column.
-        coefficients: dict or iterable:
+        coefficients: dict or iterable
             key-value pairs of row names and their coefficients.
         """
         raise NotImplementedError("abstract base class, subclass to expose an "\
@@ -60,9 +61,9 @@ class LPModelFacade(object):
 
         Parameters
         ----------
-        name: str:
+        name: str
             Identifier for the row.
-        coefficients: dict or iterable:
+        coefficients: dict or iterable
             key-value pairs of column names and their coefficients.
         """
         raise NotImplementedError("abstract base class, subclass to expose an "\
@@ -74,7 +75,7 @@ class LPModelFacade(object):
 
         Parameters
         ----------
-        variables: dict or iterable:
+        variables: dict or iterable
             dict of dict or an iterable with pairs of variable name and a dict
             of coefficients.
         """
@@ -87,7 +88,7 @@ class LPModelFacade(object):
 
         Parameters
         ----------
-        variables: dict or iterable:
+        variables: dict or iterable
             dict of dict or an iterable with pairs of variable name and a dict
             of coefficients.
         """
@@ -100,7 +101,7 @@ class LPModelFacade(object):
 
         Parameters
         ----------
-        name: str:
+        name: str
             Name of the column variable to be removed.
         """
         raise NotImplementedError("abstract base class, subclass to expose an "\
@@ -112,7 +113,7 @@ class LPModelFacade(object):
 
         Parameters
         ----------
-        name: str:
+        name: str
             Name of the row variable to be removed.
         """
         raise NotImplementedError("abstract base class, subclass to expose an "\
@@ -124,7 +125,7 @@ class LPModelFacade(object):
 
         Parameters
         ----------
-        variables: iterable:
+        variables: iterable
             An iterable that contains the column names as strings.
         """
         raise NotImplementedError("abstract base class, subclass to expose an "\
@@ -136,7 +137,7 @@ class LPModelFacade(object):
 
         Parameters
         ----------
-        variables: iterable:
+        variables: iterable
             An iterable that contains the row names as strings.
         """
         raise NotImplementedError("abstract base class, subclass to expose an "\
@@ -168,7 +169,7 @@ class LPModelFacade(object):
 
         Parameters
         ----------
-        name: str:
+        name: str
             Name of the column variable constraints to be modified.
         constraints: dict or iterable:
             Key-value pairs of row names and a pair of lower and upper
@@ -183,7 +184,7 @@ class LPModelFacade(object):
 
         Parameters
         ----------
-        name: str:
+        name: str
             Name of the row variable constraints to be modified.
         constraints: dict or iterable:
             Key-value pairs of column names and a pair of lower and upper
@@ -198,7 +199,7 @@ class LPModelFacade(object):
 
         Parameters
         ----------
-        variables: iterable:
+        variables: iterable
             Iterable containing column names that should be optimization
             objectives.
         """
@@ -222,7 +223,7 @@ class GurobiLPModelFacade(LPModelFacade):
         """
         Parameters
         ----------
-        name: str:
+        name: str
             Optional name of the model.
         """
         LPModelFacade.__init__(self)
@@ -236,9 +237,9 @@ class GurobiLPModelFacade(LPModelFacade):
 
         Parameters
         ----------
-        name: str:
+        name: str
             Identifier for the column.
-        coefficients: dict or iterable:
+        coefficients: dict or iterable
             key-value pairs of row names and their coefficients.
         """
         coeffs = list()
@@ -260,9 +261,9 @@ class GurobiLPModelFacade(LPModelFacade):
 
         Parameters
         ----------
-        name: str:
+        name: str
             Identifier for the row.
-        coefficients: dict or iterable:
+        coefficients: dict or iterable
             key-value pairs of column names and their coefficients.
         """
         coeffs = list()
@@ -282,7 +283,7 @@ class GurobiLPModelFacade(LPModelFacade):
 
         Parameters
         ----------
-        variables: dict or iterable:
+        variables: dict or iterable
             dict of dict or an iterable with pairs of variable name and a dict
             of coefficients.
         """
@@ -295,7 +296,7 @@ class GurobiLPModelFacade(LPModelFacade):
 
         Parameters
         ----------
-        variables: dict or iterable:
+        variables: dict or iterable
             dict of dict or an iterable with pairs of variable name and a dict
             of coefficients.
         """
@@ -308,7 +309,7 @@ class GurobiLPModelFacade(LPModelFacade):
 
         Parameters
         ----------
-        name: str:
+        name: str
             Name of the column variable to be removed.
         """
         raise NotImplementedError("abstract base class, subclass to expose an "\
@@ -320,7 +321,7 @@ class GurobiLPModelFacade(LPModelFacade):
 
         Parameters
         ----------
-        name: str:
+        name: str
             Name of the row variable to be removed.
         """
         raise NotImplementedError("abstract base class, subclass to expose an "\
@@ -332,7 +333,7 @@ class GurobiLPModelFacade(LPModelFacade):
 
         Parameters
         ----------
-        variables: iterable:
+        variables: iterable
             An iterable that contains the column names as strings.
         """
         raise NotImplementedError("abstract base class, subclass to expose an "\
@@ -344,7 +345,7 @@ class GurobiLPModelFacade(LPModelFacade):
 
         Parameters
         ----------
-        variables: iterable:
+        variables: iterable
             An iterable that contains the row names as strings.
         """
         raise NotImplementedError("abstract base class, subclass to expose an "\
@@ -376,9 +377,9 @@ class GurobiLPModelFacade(LPModelFacade):
 
         Parameters
         ----------
-        name: str:
+        name: str
             Name of the column variable constraints to be modified.
-        constraints: dict or iterable:
+        constraints: dict or iterable
             Key-value pairs of row names and a pair of lower and upper
             bound.
         """
@@ -391,9 +392,9 @@ class GurobiLPModelFacade(LPModelFacade):
 
         Parameters
         ----------
-        name: str:
+        name: str
             Name of the row variable constraints to be modified.
-        constraints: dict or iterable:
+        constraints: dict or iterable
             Key-value pairs of column names and a pair of lower and upper
             bound.
         """
@@ -406,7 +407,7 @@ class GurobiLPModelFacade(LPModelFacade):
 
         Parameters
         ----------
-        variables: iterable:
+        variables: iterable
             Iterable containing column names that should be optimization
             objectives.
         """
