@@ -45,7 +45,7 @@ class FBAModel(object):
         """
         self._model = model
 
-    def delete_reaction(self, reaction):
+    def knock_out_reaction(self, reaction):
         """
         Takes a list of reactions and constrains their flux to zero.
 
@@ -70,7 +70,7 @@ class FBAModel(object):
         """
         self._model.delete_columns(reaction)
 
-    def delete_metabolite(self, metabolite):
+    def knock_out_metabolite(self, metabolite):
         """
         Takes a list of metabolites and constrains them to zero.
         Parameters
@@ -98,7 +98,7 @@ class FBAModel(object):
         Takes a list of metabolites and removes their constraints.
         Parameters
         ----------
-        name: metabolite iterable
+        metabolite: iterable
             description: list that contains the names of the metabolites
         """
         boundaries = dict()
@@ -201,7 +201,7 @@ class FBAModel(object):
             The returned list contains the names of all the transport reactions.
         """
         temp_transp = set()
-        for react in set(self.get_column_names()):
+        for react in set(self._model.get_column_names()):
             if transp in react:
                 temp_transp.add(react)
         return list(temp_transp)
@@ -216,7 +216,78 @@ class FBAModel(object):
             The returned tuple contains the names of the substrates and the
             names of the products of the reaction.
         """
-    
+        substrates=list()
+        products=list()
+        coeff=self._model.get_column_coefficients(reaction)#get_column_coefficients
+        # would return a dictionary with key=name of metabolite, value=coefficient
+        for i, elem in coeff.items():
+            if elem > 0.:
+                products.append(i)
+            elif elem < 0.:
+                substrates.append(i)
+        return (substrates,products) 
+        
+    def get_reaction_objective(self):
+        """
+        Gets the reaction objective (maximization).
+
+        Returns
+        -------
+        string:
+            The returned string is the reaction that is currently set for
+            maximization.
+        """
+        objective_dict = self._model.get_objective()#the get_objective function 
+        #would return a dictionary where key=name of reaction, value=0 if 
+        #reaction is not objective or 1 if reaction is objective
+        tmp = list()
+        for k, v in objective_dict.items():
+            if v == 1.:
+                tmp.append(k)
+        if len(tmp) is not 1:
+            raise Exception, "There exists no unique reaction objective. " + str(tmp)
+        return tmp[0]
+        
+    def set_reaction_objective(self, reaction):
+        """
+        Sets a certain reaction as objective (for maximization).
+
+        Parameters:
+        -------
+        reaction: iterable
+            iterable that contains the name of the reaction.
+        """
+        self._model.set_objective(reaction)
+        
+    def set_reaction_objective_minimize_rest(self, reaction, factor):
+        """
+        Sets a certain reaction as objective (for maximization) and minimizes
+        the usage of all the other reactions. All the transporter reactions are
+        set to zero flux.
+
+        Parameters:
+        -------
+        reaction: iterable
+            description: iterable that contains the name of the reaction.
+        factor: iterable
+            description: iterable that contains the factor to which the fluxes 
+            of the reactions that are not objective should be minimized
+        """
+        react_dict=dict()
+        react_list=self._model.get_column_names()
+        transp_list=self.get_transporters()
+        for r in react_list:
+            if r in transp_list:
+                react_dict[r]=(0,0)
+            else: 
+                react_dict[r]=(factor,factor)
+        self.modify_reaction_bounds(react_dict)
+        self.set_reaction_objective(reaction)
+        
+    def fba(self)
+        
+      
+        
 
 
 

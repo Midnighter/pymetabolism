@@ -1,6 +1,6 @@
 format 76
 "fba"
-  revision 6
+  revision 7
   modified_by 126 "alexandra"
 
 
@@ -123,13 +123,13 @@ ${members}
 	idl_decl ""
       end
 
-      operation 128126 "delete_reaction"
-	public explicit_return_type ""
+      operation 128126 "knock_out_reaction"
+	preserve_cpp_body_indent public explicit_return_type ""
 	nparams 0
 	
-	
-	
-	python_def "${@}${static}${abstract}def ${name}${(}${)}:
+	preserve_java_body_indent 
+	preserve_php_body_indent 
+	preserve_python_body_indent python_def "${@}${static}${abstract}def ${name}${(}${)}:
 ${docstring}${body}
 "
 	
@@ -243,13 +243,13 @@ ${docstring}${body}
 	
       end
 
-      operation 129662 "delete_metabolite"
-	public explicit_return_type ""
+      operation 129662 "knock_out_metabolite"
+	preserve_cpp_body_indent public explicit_return_type ""
 	nparams 0
 	
-	
-	
-	python_def "${@}${static}${abstract}def ${name}${(}${)}:
+	preserve_java_body_indent 
+	preserve_php_body_indent 
+	preserve_python_body_indent python_def "${@}${static}${abstract}def ${name}${(}${)}:
 ${docstring}${body}
 "
 	
@@ -547,6 +547,18 @@ ${docstring}${body}
       end
 
       operation 137086 "get_row_names"
+	preserve_cpp_body_indent public explicit_return_type ""
+	nparams 0
+	
+	preserve_java_body_indent 
+	preserve_php_body_indent 
+	preserve_python_body_indent python_def "${@}${static}${abstract}def ${name}${(}${)}:
+${docstring}${body}
+"
+	
+      end
+
+      operation 143614 "get_column_coefficients"
 	preserve_cpp_body_indent public explicit_return_type ""
 	nparams 0
 	
