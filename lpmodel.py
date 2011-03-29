@@ -217,6 +217,10 @@ class LPModelFacade(object):
 class GurobiLPModelFacade(LPModelFacade):
     """
     A unified interface for the Gurobi LP solver.
+
+    The common interface is formed in a way that rows are variables and columns
+    are linear expressions. In Gurobi this is transposed which might make the
+    code confusing at times.
     """
 
     def __init__(self, name=""):
@@ -287,8 +291,19 @@ class GurobiLPModelFacade(LPModelFacade):
             dict of dict or an iterable with pairs of variable name and a dict
             of coefficients.
         """
-        raise NotImplementedError("abstract base class, subclass to expose an "\
-                "interface to a specific LP solver")
+        if not isinstance(variables, dict):
+            variables = dict(variables)
+        for (name, coefficients) in variables.iteritems():
+            coeffs = list()
+            rows = list()
+            for (key, value) in coefficients.iteritems():
+                rows.append(self._rows[key])
+                coeffs.append(value)
+            self._model.addConstr(gurobipy.LinExpr(coeffs, rows), gurobipy.EQUAL,
+                    0.0, name)
+            self._columns[name] = set(self._model.getConstrs()).difference(
+                    set(self._columns.values()))
+        self._model.update()
 
     def add_rows(self, variables):
         """

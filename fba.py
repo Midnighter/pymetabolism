@@ -147,7 +147,7 @@ class FBAModel(object):
             new_columns[met+suffix] = coeff[met]
         self._model.add_columns(new_columns)
 
-    def add_transporters(self, metabolites):
+    def add_transporters(self, metabolites, suffix = "_Transp"):
         """
         Takes a list of metabolites and adds reactions that produce those metabolites.
         Parameters
@@ -156,7 +156,6 @@ class FBAModel(object):
             description: list that contains the names of metabolites that
             need to be transported into the cell
         """
-        suffix = "_Transp"
         new_columns = dict()
         coeff = dict()
         for met in metabolites:
@@ -239,4 +238,3 @@ class FBAModel(object):
 
 
 
-        
