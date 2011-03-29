@@ -20,6 +20,7 @@ LP Solver Interfaces
 """
 
 
+import numpy
 try:
     import gurobipy
 except ImportError:
@@ -163,7 +164,7 @@ class LPModelFacade(object):
         raise NotImplementedError("abstract base class, subclass to expose an "\
                 "interface to a specific LP solver")
 
-    def modify_column_constraints(self, name, constraints):
+    def modify_column_bounds(self, name, constraints):
         """
         Modifies the lower and upper bounds of a particular column.
 
@@ -178,7 +179,7 @@ class LPModelFacade(object):
         raise NotImplementedError("abstract base class, subclass to expose an "\
                 "interface to a specific LP solver")
 
-    def modify_row_constraints(self, name, constraints):
+    def modify_row_bounds(self, name, constraints):
         """
         Modifies the lower and upper bounds of a particular row.
 
@@ -218,9 +219,9 @@ class GurobiLPModelFacade(LPModelFacade):
     """
     A unified interface for the Gurobi LP solver.
 
-    The common interface is formed in a way that rows are variables and columns
-    are linear expressions. In Gurobi this is transposed which might make the
-    code confusing at times.
+    Gurobi speaks of variables and linear constraints rather than rows and
+    columns. Each variable is involved in a column with multiple linear
+    constraints.
     """
 
     def __init__(self, name=""):
@@ -232,10 +233,40 @@ class GurobiLPModelFacade(LPModelFacade):
         """
         LPModelFacade.__init__(self)
         self._model = gurobipy.Model(name)
-        self._columns = dict()
-        self._rows = dict()
+        self._variables = dict()
+        self._constraints = dict()
 
-    def add_column(self, name, coefficients):
+    def _get_variable(self, name):
+        """
+        """
+        return self._variables[name]
+
+    def _get_constraint(self, name):
+        """
+        """
+        return self._constraints[name]
+
+    def _add_variable(self, name, coefficients, bounds):
+        """
+        """
+        if name in self._variables:
+            return
+        self._variables[name] = self._model.addVar(*bounds, name=name)
+        for (row, factor) in coefficients.iteritems():
+            if row not in self._rows:
+                self._rows[row] = self._model.addConstr(gurobipy.LinExpr(factor,
+                    self._columns[name]), gurobipy.GRB.EQUAL, 0.0)
+
+    def _add_constraint(self, name, coefficients):
+        """
+        """
+        if name in self._constraints:
+            self._model.remove(self._constraints.pop(name))
+        self._constraints[name] = self._model.addConstr(gurobipy.LinExpr(
+                coefficients.values(), map(self._get_variable,
+                coefficients.keys())), gurobipy.GRB.EQUAL, 0.0)
+
+    def add_column(self, name, coefficients, bounds=tuple()):
         """
         Introduces a new variable.
 
@@ -246,17 +277,12 @@ class GurobiLPModelFacade(LPModelFacade):
         coefficients: dict or iterable
             key-value pairs of row names and their coefficients.
         """
-        coeffs = list()
-        rows = list()
         if not isinstance(coefficients, dict):
             coefficients = dict(coefficients)
-        for (key, value) in coefficients.iteritems():
-            rows.append(self._rows[key])
-            coeffs.append(value)
-        self._model.addConstr(gurobipy.LinExpr(coeffs, rows), gurobipy.EQUAL,
-                0.0, name)
-        self._columns[name] = set(self._model.getConstrs()).difference(
-                set(self._columns.values()))
+        self._add_variable(name, coefficients, bounds)
+        grb_column = self._columns[name]
+        grb_column.addTerms(coefficients.values(), map(self._get_constraint,
+                coefficients.keys()))
         self._model.update()
 
     def add_row(self, name, coefficients):
@@ -270,15 +296,9 @@ class GurobiLPModelFacade(LPModelFacade):
         coefficients: dict or iterable
             key-value pairs of column names and their coefficients.
         """
-        coeffs = list()
-        columns = list()
         if not isinstance(coefficients, dict):
             coefficients = dict(coefficients)
-        for (key, value) in coefficients.iteritems():
-            columns.append(self._rows[key])
-            coeffs.append(value)
-        column = gurobipy.Column(coeffs, columns)
-        self._rows[name] = self._model.addVar(name=name, column=column)
+        self._add_constraint(name, coefficients)
         self._model.update()
 
     def add_columns(self, variables):
@@ -293,16 +313,6 @@ class GurobiLPModelFacade(LPModelFacade):
         """
         if not isinstance(variables, dict):
             variables = dict(variables)
-        for (name, coefficients) in variables.iteritems():
-            coeffs = list()
-            rows = list()
-            for (key, value) in coefficients.iteritems():
-                rows.append(self._rows[key])
-                coeffs.append(value)
-            self._model.addConstr(gurobipy.LinExpr(coeffs, rows), gurobipy.EQUAL,
-                    0.0, name)
-            self._columns[name] = set(self._model.getConstrs()).difference(
-                    set(self._columns.values()))
         self._model.update()
 
     def add_rows(self, variables):
@@ -315,8 +325,9 @@ class GurobiLPModelFacade(LPModelFacade):
             dict of dict or an iterable with pairs of variable name and a dict
             of coefficients.
         """
-        raise NotImplementedError("abstract base class, subclass to expose an "\
-                "interface to a specific LP solver")
+        if not isinstance(variables, dict):
+            variables = dict(variables)
+        self._model.update()
 
     def delete_column(self, name):
         """
@@ -327,8 +338,7 @@ class GurobiLPModelFacade(LPModelFacade):
         name: str
             Name of the column variable to be removed.
         """
-        raise NotImplementedError("abstract base class, subclass to expose an "\
-                "interface to a specific LP solver")
+        self._model.remove(self._variables[name])
 
     def delete_row(self, name):
         """
@@ -339,8 +349,7 @@ class GurobiLPModelFacade(LPModelFacade):
         name: str
             Name of the row variable to be removed.
         """
-        raise NotImplementedError("abstract base class, subclass to expose an "\
-                "interface to a specific LP solver")
+        self._model.remove(self._constraints[name])
 
     def delete_columns(self, variables):
         """
@@ -351,8 +360,7 @@ class GurobiLPModelFacade(LPModelFacade):
         variables: iterable
             An iterable that contains the column names as strings.
         """
-        raise NotImplementedError("abstract base class, subclass to expose an "\
-                "interface to a specific LP solver")
+        map(self.delete_column, variables)
 
     def delete_rows(self, variables):
         """
@@ -363,8 +371,7 @@ class GurobiLPModelFacade(LPModelFacade):
         variables: iterable
             An iterable that contains the row names as strings.
         """
-        raise NotImplementedError("abstract base class, subclass to expose an "\
-                "interface to a specific LP solver")
+        map(self.delete_row, variables)
 
     def get_column_names(self):
         """
@@ -373,8 +380,7 @@ class GurobiLPModelFacade(LPModelFacade):
         list:
             Strings identifying column names.
         """
-        raise NotImplementedError("abstract base class, subclass to expose an "\
-                "interface to a specific LP solver")
+        return self._variables.keys()
 
     def get_row_names(self):
         """
@@ -383,10 +389,9 @@ class GurobiLPModelFacade(LPModelFacade):
         list:
             Strings identifying row names.
         """
-        raise NotImplementedError("abstract base class, subclass to expose an "\
-                "interface to a specific LP solver")
+        return self._constraints.keys()
 
-    def modify_column_constraints(self, name, constraints):
+    def modify_column_bounds(self, name, constraints):
         """
         Modifies the lower and upper bounds of a particular column.
 
@@ -398,10 +403,9 @@ class GurobiLPModelFacade(LPModelFacade):
             Key-value pairs of row names and a pair of lower and upper
             bound.
         """
-        raise NotImplementedError("abstract base class, subclass to expose an "\
-                "interface to a specific LP solver")
 
-    def modify_row_constraints(self, name, constraints):
+
+    def modify_row_bounds(self, name, constraints):
         """
         Modifies the lower and upper bounds of a particular row.
 
@@ -413,8 +417,9 @@ class GurobiLPModelFacade(LPModelFacade):
             Key-value pairs of column names and a pair of lower and upper
             bound.
         """
-        raise NotImplementedError("abstract base class, subclass to expose an "\
-                "interface to a specific LP solver")
+        grb_column = self._model.getCol(self._rows[name])
+        if not isinstance(constraints, dict):
+            constraints = dict(constraints)
 
     def set_objective(self, variables):
         """
