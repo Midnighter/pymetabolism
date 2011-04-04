@@ -19,7 +19,9 @@ Flux Balance Analysis Model
     fba.py
 """
 
+
 import numpy
+
 
 class FBAModel(object):
     """
@@ -45,151 +47,165 @@ class FBAModel(object):
         """
         self._model = model
 
-    def knock_out_reaction(self, reaction):
+    def knockout_reaction(self, reaction):
         """
-        Takes a list of reactions and constrains their flux to zero.
+        Constrains the allowed reaction flux to zero.
 
         Parameters
         ----------
-        reaction: iterable
-            iterable that contains the names of the reactions
+        reaction: iterable or str
+            A single name or iterable that contains the names of the reactions.
         """
-        reactions = dict()
-        for reaction in reaction:
-            reactions[reaction] = (0, 0)
-        self._model.modify_column_constraints(reactions)
+        if hasattr(reaction, "__iter__"):
+            bounds = dict((rxn, (0.0, 0.0)) for rxn in reaction)
+        else:
+            bounds = {reaction: (0.0, 0.0)}
+        self._model.modify_column_bounds(bounds)
 
     def delete_reaction_from_stoich(self, reaction):
         """
-        Takes a list of metabolites and removes them from the stoichiometry matrix.
+        Completely removes the reaction(s) from the model.
 
         Parameters
         ----------
-        reaction: iterable
-            iterable that contains the names of the reactions
+        reaction: iterable or str
+            A single name or iterable that contains the names of the reactions.
         """
-        self._model.delete_columns(reaction)
+        self._model.delete_column(reaction)
 
-    def knock_out_metabolite(self, metabolite):
+    def knockout_compound(self, compound):
         """
-        Takes a list of metabolites and constrains them to zero.
+        Constrains the reaction fluxes consuming or producing elements in
+        compound to zero.
+
         Parameters
         ----------
-        metabolite: iterable
-            iterable that contains the names of the compounds
+        compound: iterable or str
+            A single name or iterable that contains the names of the compounds.
         """
-        metabolites = dict()
-        for metabolite in metabolite:
-            metabolites[metabolite] = (0, 0)
-        self._model.modify_row_constraints(metabolites)
+        if hasattr(compound, "__iter__"):
+            bounds = dict((name, (0.0, 0.0)) for cmpd in compound for name in
+                    self._model.get_column_names(compound))
+        else:
+            bounds = dict((name, (0.0, 0.0)) for name in
+                    self._model.get_column_names(compound))
+        self._model.modify_column_bounds(metabolites)
 
-    def delete_metabolite_from_stoich(self, metabolite):
+    def delete_compound_from_stoich(self, compound):
         """
-        Takes a list of metabolites and removes them from the stoichiometry matrix.
+        Completely removes the compound(s) from the model.
+
         Parameters
         ----------
-        name: metabolite iterable
-            description: list that contains the names of the metabolites
+        reaction: iterable or str
+            A single name or iterable that contains the names of the compounds.
         """
-        self._model.delete_rows(metabolite)
+        self._model.delete_row(compound)
 
-    def free_metabolites(self, metabolite):
+    def free_metabolites(self, compound):
         """
-        Takes a list of metabolites and removes their constraints.
+        Completely removes any bounds on compound(s).
+
         Parameters
         ----------
-        metabolite: iterable
-            description: list that contains the names of the metabolites
+        compound: iterable or str
+            A single name or iterable that contains the names of the compounds.
         """
-        boundaries = dict()
-        for metabolite in metabolite:
-            boundaries[metabolite] = (-numpy.inf, numpy.inf)
-        self._model.modify_row_constraints(boundaries)
+        if hasattr(compound, "__iter__"):
+            bounds = dict((name, (-numpy.inf, numpy.inf)) for name in compound)
+        else:
+            bounds = {compound: (-numpy.inf, numpy.inf)}
+        self._model.modify_row_bounds(boundaries)
 
-    def modify_reaction_bounds(self, bounds_dict):
+    def modify_reaction_bounds(self, bounds):
         """
-        Takes a dictionary of  boundary conditions for reaction fluxes and enforces
-        the respective boundary conditions.
+        Modifies the allowed flux on reactions.
+
         Parameters
         ----------
-        bounds : dictionary
-            description: key = name of reaction, values = tuples of lower and
-            upper bounds for the flux
+        bounds : dict
+            Map of reaction names to pairs with their lower and upper bound.
         """
-        self._model.modify_column_constraints(self, bounds_dict)
+        self._model.modify_column_bounds(self, bounds)
 
-    def modify_metabolite_bounds(self, bounds_dict):
+    def modify_compound_bounds(self, bounds):
         """
-        Takes a dictionary of  boundary conditions for metabolites and enforces
-        the respective boundary conditions.
+        Modifies the bounds on compounds.
+
         Parameters
         ----------
-        bounds : dictionary
-            description: key = name of metabolite, values = tuples of lower and
-            upper bounds for the flux
+        bounds : dict
+            Map of compound names to pairs with their lower and upper bound.
         """
-        self._model.modify_row_constraints(self, bounds_dict)
+        self._model.modify_row_bounds(self, bounds)
 
-    def add_metabolite_drains(self, metabolites, suffix="_Drain"):
+    def add_compound_drain(self, compound, suffix="_Drain", bounds=tuple()):
         """
-        Takes a list of metabolites and adds reactions that consume those metabolites.
+        Adds an export channel for each compound.
+
         Parameters
         ----------
-        metabolites : iterable
-            description: list that contains the names of metabolites that
-            need to be exported
+        compound: iterable or str
+            A single name or iterable that contains the names of the compounds
+            for which export from the model is added.
+        suffix: str (optional)
+            Identifier added to the name of drains to distinguish them from
+            normal reactions.
+        bounds: tuple (optional)
+            A pair of lower and upper bound on the flux for all drains added.
         """
-        new_columns = dict()
-        coeff = dict()
-        for met in metabolites:
-            coeff[met][0]=-1
-        for met in metabolites:
-            new_columns[met+suffix] = coeff[met]
-        self._model.add_columns(new_columns)
+        columns = ((name + suffix, {name: -1}, bounds) for name in compound)
+        self._model.add_columns(columns)
 
-    def add_transporters(self, metabolites, suffix = "_Transp"):
+    def add_compound_transport(self, compound, suffix = "_Transp", bounds=tuple()):
         """
-        Takes a list of metabolites and adds reactions that produce those metabolites.
+        Adds an export channel for each compound.
+
         Parameters
         ----------
-        metabolites : iterable
-            description: list that contains the names of metabolites that
-            need to be transported into the cell
+        compound : iterable or str
+            A single name or iterable that contains the names of the compounds
+            for which export from the model is added.
+        suffix: str (optional)
+            Identifier added to the name of transporters to distinguish them from
+            normal reactions.
+        bounds: tuple (optional)
+            A pair of lower and upper bound on the flux for all transporters added.
         """
-        new_columns = dict()
-        coeff = dict()
-        for met in metabolites:
-            coeff[met][0]=1
-        for met in metabolites:
-            new_columns[met+suffix] = coeff[met]
-        self._model.add_columns(new_columns)
+        columns = ((name + suffix, {name: 1}, bounds) for name in compound)
+        self._model.add_columns(columns)
 
     def get_reactions(self, drain="_Drain", transp="_Transp"):
         """
-        Gets the list of all reactions (excluding transport and drain reactions).
+        Returns
+        -------
+        iterator:
+            Iterator over all names of reactions (excluding transport and drain
+            reactions).
+        """
+        return (rxn for rxn in self._model.get_column_names() if not
+                (rxn.endswith(drain) or rxn.endswith(transp)))
+
+    def get_compounds(self):
+        """
+        Returns
+        -------
+        iterator:
+            Iterator over all names of compounds.
+        """
+        return self._model.get_row_names()
+
+    def get_drains(self, drain="_Drain"):
+        """
+        Gets the list of all transporters.
 
         Returns
         -------
-        iterable:
-            The returned list contains the names of all the reactions.
+        iterator:
+            Iterator over all names of drains.
         """
-        temp_react = set(self.get_column_names())
-        temp_drain_transp = set()
-        for react in temp_react:
-            if drain in react or transp in react:
-                temp_drain_transp.add(react)
-        return list(temp_react.difference(temp_drain_transp))
-
-    def get_metabolites(self):
-        """
-        Gets the list of all metabolites.
-
-        Returns
-        -------
-        iterable:
-            The returned list contains the names of all the metabolites.
-        """
-        return list(self.get_row_names())
+        return (rxn for rxn in self._model.get_column_names() if
+                rxn.endswith(drain))
 
     def get_transporters(self, transp="_Transp"):
         """
@@ -197,68 +213,65 @@ class FBAModel(object):
 
         Returns
         -------
-        iterable:
-            The returned list contains the names of all the transport reactions.
+        iterator:
+            Iterator over all names of transporters.
         """
-        temp_transp = set()
-        for react in set(self._model.get_column_names()):
-            if transp in react:
-                temp_transp.add(react)
-        return list(temp_transp)
+        return (rxn for rxn in self._model.get_column_names() if
+                rxn.endswith(transp))
 
     def get_substrates_and_products(self, reaction):
         """
-        Gets the substrates and products of a reaction.
-
         Returns
         -------
         tuple:
-            The returned tuple contains the names of the substrates and the
-            names of the products of the reaction.
+            Pair of the names of the substrates and the names of the products
+            of the reaction as lists.
         """
         substrates=list()
         products=list()
-        coeff=self._model.get_column_coefficients(reaction)#get_column_coefficients
-        # would return a dictionary with key=name of metabolite, value=coefficient
-        for i, elem in coeff.items():
-            if elem > 0.:
-                products.append(i)
-            elif elem < 0.:
-                substrates.append(i)
-        return (substrates,products) 
-        
-    def get_reaction_objective(self):
+        for (cmpd, factor) in self._model.get_row_names(reaction, True):
+            if factor > 0.0:
+                products.append(cmpd)
+            elif factor < 0.0:
+                substrates.append(cmpd)
+        return (substrates,products)
+
+    def get_objective_reaction(self, coefficient=False):
         """
-        Gets the reaction objective (maximization).
+        Parameters
+        ----------
+        coefficient: bool (optional)
+            Causes the returned iterator to run over pairs of reaction name and
+            absolute weight in the objective function.
 
         Returns
         -------
-        string:
-            The returned string is the reaction that is currently set for
-            maximization.
+        iterator:
+            Current reaction(s) that are used as objectives in LP.
         """
-        objective_dict = self._model.get_objective()#the get_objective function 
-        #would return a dictionary where key=name of reaction, value=0 if 
-        #reaction is not objective or 1 if reaction is objective
-        tmp = list()
-        for k, v in objective_dict.items():
-            if v == 1.:
-                tmp.append(k)
-        if len(tmp) is not 1:
-            raise Exception, "There exists no unique reaction objective. " + str(tmp)
-        return tmp[0]
-        
-    def set_reaction_objective(self, reaction):
+        return self._model.get_objective(coefficient)
+
+    def set_objective_reaction(self, reaction):
         """
         Sets a certain reaction as objective (for maximization).
 
         Parameters:
         -------
-        reaction: iterable
-            iterable that contains the name of the reaction.
+        reaction: dict
+            Map from reaction name(s) to their factor(s).
         """
         self._model.set_objective(reaction)
-        
+
+    def get_objective_value(self):
+        """
+        Returns
+        -------
+        float:
+            Flux of the set objective reaction(s).
+        """
+        growth = self._model.get_objective_value()
+        return growth if growth else 0.0
+
     def set_reaction_objective_minimize_rest(self, reaction, factor):
         """
         Sets a certain reaction as objective (for maximization) and minimizes
@@ -283,7 +296,7 @@ class FBAModel(object):
                 react_dict[r]=(factor,factor)
         self.modify_reaction_bounds(react_dict)
         self.set_reaction_objective(reaction)
-        
+
     def fba(self)
         
       
