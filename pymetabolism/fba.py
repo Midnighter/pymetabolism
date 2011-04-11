@@ -283,7 +283,7 @@ class FBAModel(object):
         reaction: iterable
             description: iterable that contains the name of the reaction.
         factor: iterable
-            description: iterable that contains the factor to which the fluxes 
+            description: iterable that contains the factor to which the fluxes
             of the reactions that are not objective should be minimized
         """
         react_dict=dict()
@@ -292,33 +292,14 @@ class FBAModel(object):
         for r in react_list:
             if r in transp_list:
                 react_dict[r]=(0,0)
-            else: 
+            else:
                 react_dict[r]=(factor,factor)
         self.modify_reaction_bounds(react_dict)
         self.set_reaction_objective(reaction)
 
-    def fba(self)
-        
-      
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def fba(self, maximize=True):
+        """
+        Performs an optimization of the current objective(s) in the model.
+        """
+        self._model.optimize(maximize)
 
