@@ -615,23 +615,12 @@ class GurobiLPModelFacade(LPModelFacade):
             self._variables[name].setAttr("Obj", factor)
         self._model.update()
 
-    def get_objective_value(self):
-        """
-        Returns
-        -------
-        float:
-            Current value of the objective if available.
-
-        Warnings
-        --------
-        A number of different kinds of warnings may be issued and inform about
-        the status of an available solution.
-        """
+    def _status(self):
         status = self._model.getAttr("Status")
         if status == self._gurobipy.GRB.LOADED:
             warnings.warn("optimize before retreiving the objective value")
         elif status == self._gurobipy.GRB.OPTIMAL:
-            return self._model.getAttr("ObjVal")
+            pass
         elif status == self._gurobipy.GRB.INFEASIBLE:
             warnings.warn("model is infeasible")
         elif status == self._gurobipy.GRB.INF_OR_UNBD:
@@ -647,14 +636,38 @@ class GurobiLPModelFacade(LPModelFacade):
         elif status == self._gurobipy.GRB.TIME_LIMIT:
             warnings.warn("time limit exceeded")
         elif status == self._gurobipy.GRB.SOLUTION_LIMIT:
-            return self._model.getAttr("ObjVal")
+            warnings.warn("solution limit exceeded")
         elif status == self._gurobipy.GRB.INTERRUPTED:
             warnings.warn("optimization process was interrupted")
         elif status == self._gurobipy.GRB.SUBOPTIMAL:
             warnings.warn("solution is suboptimal")
-            return self._model.getAttr("ObjVal")
         elif status == self._gurobipy.GRB.NUMERIC:
             warnings.warn("optimization aborted due to numeric difficulties")
+        return status
+
+    def get_objective_value(self):
+        """
+        Returns
+        -------
+        float:
+            Current value of the objective if available.
+
+        Warnings
+        --------
+        A number of different kinds of warnings may be issued and inform about
+        the status of an available solution.
+        """
+        self._status()
+        try:
+            return self._model.getAttr("ObjVal")
+        except AttributeError:
+            pass
+
+    def get_solution_vector(self):
+        self._status()
+        return ((column, var.getAttr("X")) for (column, var) in
+                self._variables.iteritems())
+
 
     def optimize(self, maximize=True):
         """

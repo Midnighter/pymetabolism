@@ -83,7 +83,8 @@ class MetabolicModelBuilder(object):
                     known_fluxes[rxn.name + "_Rev"] = abs(rxn.flux_value)
                 else:
                     known_fluxes[rxn.name] = 0.0
-                    known_fluxes[rxn.name + "_Rev"] = 0.0
+                    if rxn.reversible:
+                        known_fluxes[rxn.name + "_Rev"] = 0.0
             if rxn.objective_coefficient:
                 objectives[rxn.name] = rxn.objective_coefficient
         self._model.set_objective(objectives)

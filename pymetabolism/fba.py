@@ -157,8 +157,11 @@ class FBAModel(object):
         bounds: tuple (optional)
             A pair of lower and upper bound on the flux for all drains added.
         """
-        columns = ((name + suffix, {name: -1.0}, bounds) for name in compound)
-        self._model.add_columns(columns)
+        if hasattr(compound, "__iter__"):
+            columns = ((name + suffix, {name: -1.0}, bounds) for name in compound)
+            self._model.add_columns(columns)
+        else:
+            self._model.add_column(compound + suffix, {compound: -1.0}, bounds)
 
     def add_compound_transport(self, compound, suffix = "_Transp", bounds=tuple()):
         """
@@ -175,8 +178,11 @@ class FBAModel(object):
         bounds: tuple (optional)
             A pair of lower and upper bound on the flux for all transporters added.
         """
-        columns = ((name + suffix, {name: 1.0}, bounds) for name in compound)
-        self._model.add_columns(columns)
+        if hasattr(compound, "__iter__"):
+            columns = ((name + suffix, {name: 1.0}, bounds) for name in compound)
+            self._model.add_columns(columns)
+        else:
+            self._model.add_column(compound + suffix, {compound: 1.0}, bounds)
 
     def get_reactions(self, drain="_Drain", transp="_Transp"):
         """
@@ -305,4 +311,8 @@ class FBAModel(object):
         Performs an optimization of the current objective(s) in the model.
         """
         self._model.optimize(maximize)
+
+    def get_flux_distribution(self):
+        return self._model.get_solution_vector()
+
 
