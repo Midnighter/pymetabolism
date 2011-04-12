@@ -47,6 +47,9 @@ class FBAModel(object):
         """
         self._model = model
 
+    def add_reaction(self, name, coefficients, bounds=tuple()):
+        self._model.add_column(name, coefficients, bounds)
+
     def knockout_reaction(self, reaction):
         """
         Constrains the allowed reaction flux to zero.
@@ -154,7 +157,7 @@ class FBAModel(object):
         bounds: tuple (optional)
             A pair of lower and upper bound on the flux for all drains added.
         """
-        columns = ((name + suffix, {name: -1}, bounds) for name in compound)
+        columns = ((name + suffix, {name: -1.0}, bounds) for name in compound)
         self._model.add_columns(columns)
 
     def add_compound_transport(self, compound, suffix = "_Transp", bounds=tuple()):
@@ -172,7 +175,7 @@ class FBAModel(object):
         bounds: tuple (optional)
             A pair of lower and upper bound on the flux for all transporters added.
         """
-        columns = ((name + suffix, {name: 1}, bounds) for name in compound)
+        columns = ((name + suffix, {name: 1.0}, bounds) for name in compound)
         self._model.add_columns(columns)
 
     def get_reactions(self, drain="_Drain", transp="_Transp"):

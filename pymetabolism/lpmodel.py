@@ -330,6 +330,11 @@ class GurobiLPModelFacade(LPModelFacade):
         self._variables = dict()
         self._constraints = dict()
 
+    def output(self):
+        for (row, constr) in self._constraints.iteritems():
+            print row, self._model.getRow(constr)
+        print
+
     def _add_variable(self, name, coefficients, bounds):
         """
         """
@@ -589,10 +594,10 @@ class GurobiLPModelFacade(LPModelFacade):
         """
         lin_expr = self._model.getObjective()
         if coefficient:
-            return ((lin_expr(i).getAttr("VarName"), lin_expr(i).getCoeff())
+            return ((lin_expr.getVar(i).getAttr("VarName"), lin_expr.getCoeff(i))
                     for i in xrange(lin_expr.size()))
         else:
-            return (lin_expr(i).getAttr("VarName") for i in xrange(lin_expr.size()))
+            return (lin_expr.getVar(i).getAttr("VarName") for i in xrange(lin_expr.size()))
 
     def set_objective(self, variables):
         """

@@ -301,7 +301,9 @@ class SBMLReaction(BasicMetabolicComponent):
     """
 
     def __init__(self, identifier, substrates, products, reversible=False,
-            synonyms=None, rate_constant=None):
+            synonyms=None, rate_constant=None, lower_bound=None,
+            upper_bound=None, objective_coefficient=None, flux_value=None,
+            reduced_cost=None):
         """
         Parameters
         ----------
@@ -332,6 +334,10 @@ class SBMLReaction(BasicMetabolicComponent):
             self.rate_constant = float(rate_constant)
         except (ValueError, TypeError):
             self.rate_constant = None
+        self.lower_bound = lower_bound
+        self.upper_bound = upper_bound
+        self.objective_coefficient = objective_coefficient
+        self.flux_value = flux_value
         self._consistency_check()
 
     def __contains__(self, compound):

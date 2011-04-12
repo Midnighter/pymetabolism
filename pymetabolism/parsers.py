@@ -85,7 +85,7 @@ class SBMLParser(object):
         # parse compounds
         self.compounds = [self._parse_species(cmpd) for cmpd in
                 model.getListOfSpecies()]
-        self.reactions = [self._parse_reaction(rxn) for rxn in
+        self.reactions = [self._parse_reaction(rxn, model) for rxn in
                 model.getListOfReactions()]
 
     def _parse_compartment(self, compartment):
@@ -114,21 +114,9 @@ class SBMLParser(object):
         @todo: Check for meta information and parse if available
         """
         (identifier, comp) = self._strip_species_id(compound.getId())
-        cmpd = SBMLCompound(identifier, charge=compound.getCharge())
         if not comp:
             comp = SBMLCompartment(compound.getCompartment())
-        if not comp:
-            return cmpd
-        else:
-            return SBMLCompartmentCompound(cmpd, comp)
-
-    def _parse_reactant(self, name):
-        """Able to parse entries from getListOfSpecies
-
-        @todo: Check for meta information and parse if available
-        """
-        (identifier, comp) = self._strip_species_id(name)
-        cmpd = SBMLCompound(identifier)
+        cmpd = SBMLCompound(identifier, charge=compound.getCharge())
         if not comp:
             return cmpd
         else:
@@ -142,15 +130,20 @@ class SBMLParser(object):
             identifier = identifier[:-len(self.reversible_suffix)]
         return identifier
 
-    def _parse_reaction(self, reaction):
+    def _parse_reaction(self, reaction, model):
         """Able to parse entries from getListOfReactions"""
         identifier = self._strip_reaction_id(reaction.getId())
-        substrates = dict((self._parse_reactant(elem.getSpecies()),
+        params = dict()
+        for param in reaction.getKineticLaw().getListOfParameters():
+            params[param.getId().lower()] = param.getValue()
+        substrates = dict((self._parse_species(model.getSpecies(
+            elem.getSpecies())),
             abs(elem.getStoichiometry())) for elem in
             reaction.getListOfReactants())
-        products = dict((self._parse_reactant(elem.getSpecies()),
+        products = dict((self._parse_species(model.getSpecies(
+            elem.getSpecies())),
             abs(elem.getStoichiometry())) for elem in
             reaction.getListOfProducts())
         return SBMLReaction(identifier, substrates, products,
-                reversible=reaction.getReversible())
+                reversible=reaction.getReversible(), **params)
 
