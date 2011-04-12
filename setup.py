@@ -26,6 +26,9 @@ from glob import glob
 from distutils.core import setup
 
 
+test_data_dir = os.path.join("pymetabolism", "tests", "data")
+
+
 setup(
     name = "pymetabolism",
     version = "0.1",
@@ -35,6 +38,6 @@ setup(
     url = "http://github.com/Midnighter/pymetabolism",
     packages = ["pymetabolism",
             "pymetabolism.tests"],
-    package_data = {"pymetabolism": ["tests/*.py"]}
+    package_data = {"pymetabolism.tests": ["data/*.xml", "data/*lp"]},
     )
 
