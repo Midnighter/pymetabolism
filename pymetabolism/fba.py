@@ -21,6 +21,7 @@ Flux Balance Analysis Model
 
 
 import numpy
+import copy
 
 
 class FBAModel(object):
@@ -46,6 +47,15 @@ class FBAModel(object):
         text
         """
         self._model = model
+
+    def __copy__(self):
+        return FBAModel(copy.copy(self._model))
+
+    def __deepcopy__(self, memo=dict()):
+        return FBAModel(copy.deepcopy(self._model))
+
+    def copy(self):
+        return FBAModel(copy.deepcopy(self._model))
 
     def add_reaction(self, name, coefficients, bounds=tuple()):
         self._model.add_column(name, coefficients, bounds)

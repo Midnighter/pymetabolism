@@ -21,6 +21,7 @@ LP Solver Interfaces
 
 
 import warnings
+import copy
 
 
 class LPModelFacade(object):
@@ -330,6 +331,23 @@ class GurobiLPModelFacade(LPModelFacade):
         self._variables = dict()
         self._constraints = dict()
 
+    def __copy__(self):
+        cpy = GurobiLPModelFacade(self.name)
+        cpy._model = self._model.copy()
+        cpy._variables = dict()
+        for col in cpy._model.getVars():
+            cpy._variables[col.getAttr("VarName")] = col
+        cpy._constraints = dict()
+        for row in cpy._model.getConstrs():
+            cpy._constraints[row.getAttr("ConstrName")] = row
+        return cpy
+
+    def __deepcopy__(self, memo=dict()):
+        return self.__copy__()
+
+    def copy(self):
+        return self.__deepcopy__()
+
     def output(self):
         for (row, constr) in self._constraints.iteritems():
             print row, self._model.getRow(constr)
@@ -439,7 +457,7 @@ class GurobiLPModelFacade(LPModelFacade):
         column: iterable or str
             Name or iterable over the column name(s) to be removed.
         """
-        if hasattr(name, "__iter__"):
+        if hasattr(column, "__iter__"):
             for name in column:
                 self._model.remove(self._variables.pop(name))
         else:
@@ -455,7 +473,7 @@ class GurobiLPModelFacade(LPModelFacade):
         row: iterable or str
             Name or iterable over the row name(s) to be removed.
         """
-        if hasattr(name, "__iter__"):
+        if hasattr(row, "__iter__"):
             for name in row:
                 self._model.remove(self._constraints.pop(name))
         else:
