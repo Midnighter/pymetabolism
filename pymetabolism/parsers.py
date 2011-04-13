@@ -77,7 +77,8 @@ class SBMLParser(object):
         """
         document = self._sbml.readSBML(path)
         if document.getNumErrors() > 0:
-            warnings.warn("reading the SBML document produced some errors")
+            warnings.warn("reading the SBML document '%s' produced some errors"\
+                    % path)
         model = document.getModel()
         # parse compartments
         self.compartments = [self._parse_compartment(comp) for comp in

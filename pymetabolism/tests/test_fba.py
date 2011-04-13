@@ -19,8 +19,8 @@ Flux Balance Analysis Model
     test_fba.py
 """
 
-import unittest
-import fba
+import nose.tools as nt
+import pymetabolism.fba as pyfba
 
 
 #class test_FBAModel(unittest.TestCase):

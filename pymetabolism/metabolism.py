@@ -111,7 +111,7 @@ class BasicMetabolicComponent(object):
         raise NotImplementedError
 
 
-class SimpleCompound(BasicMetabolicComponent):
+class BasicCompound(BasicMetabolicComponent):
     """
     The simplest form of representing a metabolic compound - just its class and
     name.
@@ -129,7 +129,7 @@ class SimpleCompound(BasicMetabolicComponent):
         BasicMetabolicComponent.__init__(self, name=name)
 
 
-class SimpleReaction(BasicMetabolicComponent):
+class BasicReaction(BasicMetabolicComponent):
     """
     The simplest form of representing a biochemical reaction - just its class
     and name.
@@ -201,7 +201,7 @@ class SBMLCompartment(BasicMetabolicComponent):
         self.units = units
 
 
-class SBMLCompound(BasicMetabolicComponent):
+class SBMLCompound(BasicCompound):
     """
     A molecular compound as defined per SBML standard.
     """
@@ -228,7 +228,7 @@ class SBMLCompound(BasicMetabolicComponent):
         """
         if self.__class__._memory.has_key((self.__class__, identifier)):
             return
-        BasicMetabolicComponent.__init__(self, name=identifier)
+        BasicCompound.__init__(self, name=identifier)
         self.identifier = identifier
         self.formula = formula
         self.in_chl = in_chl
@@ -250,7 +250,7 @@ class SBMLCompound(BasicMetabolicComponent):
         raise NotImplementedError
 
 
-class SBMLCompartmentCompound(BasicMetabolicComponent):
+class SBMLCompartmentCompound(BasicCompound):
     """
     A compartment specific compound as defined per SBML standard.
 
@@ -270,7 +270,7 @@ class SBMLCompartmentCompound(BasicMetabolicComponent):
         if cls._memory.has_key((cls, name)):
             return cls._memory[(cls, name)]
         else:
-            return BasicMetabolicComponent.__new__(cls, name, compound,
+            return BasicCompound.__new__(cls, name, compound,
                     compartment)
 
     def __init__(self, compound, compartment):
@@ -288,14 +288,14 @@ class SBMLCompartmentCompound(BasicMetabolicComponent):
             name = "%s(%s)" % (compound.identifier, compartment.name)
         if self.__class__._memory.has_key((self.__class__, name)):
             return
-        BasicMetabolicComponent.__init__(self, name=name)
+        BasicCompound.__init__(self, name=name)
         self.compound = compound
         self.compartment = compartment
 
     def __getattr__(self, attr):
         return self.compound.__getattribute__(attr)
 
-class SBMLReaction(BasicMetabolicComponent):
+class SBMLReaction(BasicReaction):
     """
     A biochemical reaction as defined per SBML standard.
     """
@@ -325,7 +325,7 @@ class SBMLReaction(BasicMetabolicComponent):
         """
         if self.__class__._memory.has_key((self.__class__, identifier)):
             return
-        BasicMetabolicComponent.__init__(self, name=identifier)
+        BasicReaction.__init__(self, name=identifier, reversible=reversible)
         self.substrates = substrates
         self.products = products
         self.reversible = bool(reversible)
