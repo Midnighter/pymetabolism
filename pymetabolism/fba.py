@@ -20,8 +20,10 @@ Flux Balance Analysis Model
 """
 
 
-import numpy
 import copy
+import itertools
+import random
+import numpy
 
 
 class FBAModel(object):
@@ -325,4 +327,44 @@ class FBAModel(object):
     def get_flux_distribution(self):
         return self._model.get_solution_vector()
 
+
+def generate_random_medium(model, default_bound=(20.0, 20.0),
+        percentage_range=(5, 100), minimal=list(), transp="_Transp"):
+    """
+    Generates a completely random medium based on a percentage of activated
+    transporters.
+
+    Parameters:
+    -------
+    model: FBAModel
+        The model is modified directly.
+    default_bound: tuple
+        A default upper limit for all components of the medium is chosen from
+        this range of floating point numbers. The first of the pair must be
+        smaller than or equal to the second.
+    percentage_range: tuple
+        A random percentage of transporters is considered for the random medium
+        according to this range. The first of the pair must be smaller than or
+        equal to the second.
+    minimal: iterable
+        Some always active transporters that form a minimal medium that is
+        extended with random other components.
+    transp: str
+        The suffix for transporters in the model.
+    """
+    assert default_bound[0] <= default_bound[1]
+    assert percentage_range[0] <= percentage_range[1]
+    # reset all current transporter boundaries as a safety measure
+    transporters = [trns for trns in model.get_transporters(transp)]
+    bounds = dict(itertools.izip(transporters, itertools.repeat((0.0, 0.0))))
+    model.modify_reaction_bounds(bounds)
+    # select a random percentage of active transporters
+    active = random.sample(transporters, int(numpy.ceil(len(transporters) *
+            random.uniform(*percentage_range) / 100.0)))
+    # since bounds is a dictionary we do not care about duplicates
+    for trns in minimal:
+        active.append(trns)
+    upper = random.uniform(*default_bound)
+    bounds = dict(itertools.izip(active, itertools.repeat((0.0, upper))))
+    model.modify_reaction_bounds(bounds)
 
