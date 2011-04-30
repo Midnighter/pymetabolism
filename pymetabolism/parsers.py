@@ -56,7 +56,7 @@ class SBMLParser(object):
 
     def __init__(self, reaction_prefix="R_", reversible_suffix="r",
             compound_prefix="M_", compartment_suffix={"_c": "Cytosol", "_e":
-            "Extra_organism"}):
+            "Extra_organism", "_b": "Exchange"}):
         if not self.__class__._sbml:
             try:
                 self.__class__._sbml = __import__(name="libsbml")
@@ -90,11 +90,16 @@ class SBMLParser(object):
                 model.getListOfReactions()]
 
     def _parse_compartment(self, compartment):
+        suffix = ""
+        for (suff, name) in self.compartment_suffix.iteritems():
+            if name == compartment.getId():
+                suffix = suff
         return SBMLCompartment(name=compartment.getId(),
                 outside=compartment.getOutside(),
                 constant=compartment.getConstant(),
                 spatial_dimensions=compartment.getSpatialDimensions(),
-                size=compartment.getSize(), units=compartment.getUnits())
+                size=compartment.getSize(), units=compartment.getUnits(),
+                suffix=suffix)
 
     def _strip_species_id(self, name):
         identifier = name

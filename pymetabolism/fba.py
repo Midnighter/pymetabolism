@@ -367,4 +367,5 @@ def generate_random_medium(model, default_bound=(20.0, 20.0),
     upper = random.uniform(*default_bound)
     bounds = dict(itertools.izip(active, itertools.repeat((0.0, upper))))
     model.modify_reaction_bounds(bounds)
+    return bounds
 
