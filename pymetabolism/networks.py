@@ -21,6 +21,7 @@ Metabolic Network Representations
 
 
 import copy
+import itertools
 import networkx as nx
 import pymetabolism.metabolism as pymet
 
@@ -47,6 +48,22 @@ class CompoundCentricNetwork(nx.MultiDiGraph):
         """
         return nx.DiGraph(self.edges_iter())
 
+    def draw(self, filename, output_format="pdf", layout_program="fdp", layout_args=""):
+        import pygraphviz as pgv
+        net = pgv.AGraph(directed=True, name=filename, strict=False)
+        node_attr= dict()
+        link_attr= dict()
+        indeces = dict()
+        # add compound nodes
+        for (i, cmpd) in enumerate(self.nodes_iter()):
+            indeces[cmpd] = i
+            net.add_node(i, label=cmpd.name, shape="circle", **node_attr)
+        # add links
+        for (u, v) in self.edges_iter():
+            net.add_edge(indeces[u], indeces[v], **link_attr)
+        filename = "%s.%s" % (filename, output_format)
+        net.draw(filename, prog=layout_program, args=layout_args)
+
 
 class ReactionCentricNetwork(nx.MultiDiGraph):
     """
@@ -67,6 +84,22 @@ class ReactionCentricNetwork(nx.MultiDiGraph):
         Return a copy with no multiple edges and no attributes.
         """
         return nx.DiGraph(self.edges_iter())
+
+    def draw(self, filename, output_format="pdf", layout_program="fdp", layout_args=""):
+        import pygraphviz as pgv
+        net = pgv.AGraph(directed=True, name=filename, strict=False)
+        node_attr= dict()
+        link_attr= dict()
+        indeces = dict()
+        # add reaction nodes
+        for (i, rxn) in enumerate(self.nodes_iter()):
+            indeces[rxn] = i
+            net.add_node(i, label=rxn.name, shape="box", **node_attr)
+        # add links
+        for (u, v) in self.edges_iter():
+            net.add_edge(indeces[u], indeces[v], **link_attr)
+        filename = "%s.%s" % (filename, output_format)
+        net.draw(filename, prog=layout_program, args=layout_args)
 
 
 class MetabolicNetwork(nx.DiGraph):
@@ -258,4 +291,47 @@ class MetabolicNetwork(nx.DiGraph):
         # time
         network.remove_edges_from(network.selfloop_edges())
         return network
+
+    def draw(self, filename, output_format="pdf", layout_program="fdp",
+                layout_args="", distinct=False, reversible_suffix="_Rev"):
+        import pygraphviz as pgv
+        net = pgv.AGraph(directed=True, name=filename, strict=True)
+        node_attr= dict()
+        link_attr= dict()
+        # add compound nodes
+        indeces = dict(itertools.izip(self.compounds, itertools.count()))
+        for (cmpd, i) in indeces.iteritems():
+            net.add_node(i, label=cmpd.name, shape="circle", **node_attr)
+        # add reactions
+        indeces.update(itertools.izip(self.reactions,
+                itertools.count(len(self.compounds))))
+        i = len(self.compounds) + len(self.reactions)
+        for rxn in self.reactions:
+            net.add_node(indeces[rxn], label=rxn.name, shape="box", **node_attr)
+            # add forward reaction links
+            for cmpd in self.predecessors(rxn):
+                net.add_edge(indeces[cmpd], indeces[rxn], **link_attr)
+            for cmpd in self.successors(rxn):
+                net.add_edge(indeces[rxn], indeces[cmpd], **link_attr)
+            if rxn.reversible:
+                if distinct:
+                    rev = pymet.BasicReaction(rxn.name + reversible_suffix)
+                    indeces[rev] = i
+                    net.add_node(i, label=rev.name, shape="box", **node_attr)
+                    # add backward reaction links
+                    for cmpd in self.predecessors(rev):
+                        net.add_edge(indeces[rev], indeces[cmpd], **link_attr)
+                    for cmpd in self.successors(rev):
+                        net.add_edge(indeces[cmpd], indeces[rev], **link_attr)
+                    i += 1
+                else:
+                    # add backward reaction links
+                    for cmpd in self.predecessors(rxn):
+                        net.add_edge(indeces[rxn], indeces[cmpd],
+                                style="dotted", **link_attr)
+                    for cmpd in self.successors(rxn):
+                        net.add_edge(indeces[cmpd], indeces[rxn],
+                                style="dotted", **link_attr)
+        filename = "%s.%s" % (filename, output_format)
+        net.draw(filename, prog=layout_program, args=layout_args)
 
