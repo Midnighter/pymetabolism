@@ -141,7 +141,7 @@ class FBAModel(object):
         bounds : dict
             Map of reaction names to pairs with their lower and upper bound.
         """
-        self._model.modify_column_bounds(self, bounds)
+        self._model.modify_column_bounds(bounds)
 
     def modify_compound_bounds(self, bounds):
         """
@@ -326,13 +326,60 @@ class FBAModel(object):
 
     def get_flux_distribution(self):
         return self._model.get_solution_vector()
-
-
-def generate_random_medium(model, default_bound=(20.0, 20.0),
-        percentage_range=(5, 100), minimal=list(), transp="_Transp"):
+    
+    def set_medium(self, medium, upper = 20.0, transp="_Transp"):
+        """
+        Applies the given medium to the model by setting the corresponding
+        transporter bounds of all components to 0, upper
+        """
+        # reset all current transporter boundaries as a safety measure
+        transporters = list(self.get_transporters())
+        bounds = dict(itertools.izip(transporters, itertools.repeat((0.0, 0.0))))
+        self.modify_reaction_bounds(bounds)
+        
+        bounds = dict(itertools.izip(medium, itertools.repeat((0.0, upper))))
+        self.modify_reaction_bounds(bounds)
+        
+        self.medium = medium #we could also read this from the bounds, but this way is much easier
+        
+        return bounds
+        
+def generate_random_medium(transporters, percentage_range=(5, 100), minimal=list(), transp="_Transp"):
     """
     Generates a completely random medium based on a percentage of activated
     transporters.
+
+    Parameters:
+    -------
+    transporters:
+        asdfd
+    percentage_range: tuple
+        A random percentage of transporters is considered for the random medium
+        according to this range. The first of the pair must be smaller than or
+        equal to the second.
+    minimal: iterable
+        Some always active transporters that form a minimal medium that is
+        extended with random other components.
+    transp: str
+        The suffix for transporters in the model.
+    """
+    assert percentage_range[0] <= percentage_range[1]
+    
+    # select a random percentage of active transporters
+    active = random.sample(transporters, int(numpy.ceil(len(transporters) *
+            random.uniform(*percentage_range) / 100.0)))
+    
+    # since bounds is a dictionary we do not care about duplicates
+    for trns in minimal:
+        active.append(trns)
+    
+    return active    
+
+def set_random_medium(model, default_bound=(20.0, 20.0),
+        percentage_range=(5, 100), minimal=list(), transp="_Transp"):
+    """
+    Generates and sets a completely random medium based on a percentage
+    of activated transporters.
 
     Parameters:
     -------
@@ -353,19 +400,9 @@ def generate_random_medium(model, default_bound=(20.0, 20.0),
         The suffix for transporters in the model.
     """
     assert default_bound[0] <= default_bound[1]
-    assert percentage_range[0] <= percentage_range[1]
-    # reset all current transporter boundaries as a safety measure
-    transporters = [trns for trns in model.get_transporters(transp)]
-    bounds = dict(itertools.izip(transporters, itertools.repeat((0.0, 0.0))))
-    model.modify_reaction_bounds(bounds)
-    # select a random percentage of active transporters
-    active = random.sample(transporters, int(numpy.ceil(len(transporters) *
-            random.uniform(*percentage_range) / 100.0)))
-    # since bounds is a dictionary we do not care about duplicates
-    for trns in minimal:
-        active.append(trns)
-    upper = random.uniform(*default_bound)
-    bounds = dict(itertools.izip(active, itertools.repeat((0.0, upper))))
-    model.modify_reaction_bounds(bounds)
-    return bounds
 
+    medium = generate_random_medium(list(model.get_transporters()),
+                                     percentage_range, minimal, transp)
+    upper = random.uniform(*default_bound)
+
+    return model.set_medium(medium, upper)
