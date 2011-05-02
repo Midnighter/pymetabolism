@@ -326,7 +326,7 @@ class FBAModel(object):
 
     def get_flux_distribution(self):
         return self._model.get_solution_vector()
-    
+
     def set_medium(self, medium, upper = 20.0, transp="_Transp"):
         """
         Applies the given medium to the model by setting the corresponding
@@ -336,14 +336,11 @@ class FBAModel(object):
         transporters = list(self.get_transporters())
         bounds = dict(itertools.izip(transporters, itertools.repeat((0.0, 0.0))))
         self.modify_reaction_bounds(bounds)
-        
         bounds = dict(itertools.izip(medium, itertools.repeat((0.0, upper))))
         self.modify_reaction_bounds(bounds)
-        
         self.medium = medium #we could also read this from the bounds, but this way is much easier
-        
         return bounds
-        
+
 def generate_random_medium(transporters, percentage_range=(5, 100), minimal=list(), transp="_Transp"):
     """
     Generates a completely random medium based on a percentage of activated

@@ -61,10 +61,43 @@ class MetabolicModelBuilder(object):
 
     def generate_model(self, path):
         from pymetabolism.fba import FBAModel
+
+        def parse_exchange(reaction):
+            reaction.name = reaction.name[3:-3]
+            constraints = dict()
+            comp = pymet.SBMLCompartment("Exchange")
+            for cmpd in reaction.substrates:
+                if cmpd.compartment == comp:
+                    continue
+                constraints[cmpd.name] = abs(reaction.stoichiometric_coeff(cmpd))
+            for cmpd in reaction.products:
+                if cmpd.compartment == comp:
+                    continue
+                constraints[cmpd.name] = reaction.stoichiometric_coeff(cmpd)
+            if reaction.upper_bound is not None:
+                ub = reaction.upper_bound
+            else:
+                ub = numpy.inf
+            self._model.add_column(reaction.name + "_Transp", constraints, (0.0, ub))
+            for (cmpd, factor) in constraints.iteritems():
+                constraints[cmpd] = -factor
+            self._model.add_column(reaction.name + "_Drain", constraints, (0.0, ub))
+            if reaction.flux_value is not None:
+                if reaction.flux_value > 0.0:
+                    known_fluxes[reaction.name + "_Transp"] = reaction.flux_value
+                elif reaction.flux_value < 0.0:
+                    known_fluxes[reaction.name + "_Drain"] = abs(reaction.flux_value)
+                else:
+                    known_fluxes[reaction.name + "_Transp"] = 0.0
+                    known_fluxes[reaction.name + "_Drain"] = 0.0
+
         self._parser.parse(path)
         known_fluxes = dict()
         objectives = dict()
         for rxn in self._parser.reactions:
+            if rxn.name.startswith("EX"):
+                parse_exchange(rxn)
+                continue
             constraints = dict()
             for cmpd in rxn.substrates:
                 constraints[cmpd.name] = rxn.stoichiometric_coeff(cmpd)
