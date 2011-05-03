@@ -293,36 +293,36 @@ class FBAModel(object):
         growth = self._model.get_objective_value()
         return growth if growth else 0.0
 
-    def set_reaction_objective_minimize_rest(self, reaction, factor):
-        """
-        Sets a certain reaction as objective (for maximization) and minimizes
-        the usage of all the other reactions. All the transporter reactions are
-        set to zero flux.
-
-        Parameters:
-        -------
-        reaction: iterable
-            description: iterable that contains the name of the reaction.
-        factor: iterable
-            description: iterable that contains the factor to which the fluxes
-            of the reactions that are not objective should be minimized
-        """
-        react_dict=dict()
-        react_list=self._model.get_column_names()
-        transp_list=self.get_transporters()
-        for r in react_list:
-            if r in transp_list:
-                react_dict[r]=(0,0)
-            else:
-                react_dict[r]=(factor,factor)
-        self.modify_reaction_bounds(react_dict)
-        self.set_reaction_objective(reaction)
+#    def set_objective_reaction_minimize_rest(self, reaction, factor):
+#        """
+#        Sets a certain reaction as objective (for maximization) and minimizes
+#        the usage of all the other reactions. All the transporter reactions are
+#        set to zero flux.
+#
+#        Parameters:
+#        -------
+#        reaction: iterable
+#            description: iterable that contains the name of the reaction.
+#        factor: iterable
+#            description: iterable that contains the factor to which the fluxes
+#            of the reactions that are not objective should be minimized
+#        """
+#        react_dict=dict()
+#        react_list=self._model.get_column_names()
+#        transp_list=self.get_transporters()
+#        for r in react_list:
+#            if r in transp_list:
+#                react_dict[r]=(0,0)
+#            else:
+#                react_dict[r]=(factor,factor)
+#        self.modify_reaction_bounds(react_dict)
+#        self.set_reaction_objective(reaction)
 
     def fba(self, maximize=True):
         """
         Performs an optimization of the current objective(s) in the model.
         """
-        self._model.optimize(maximize)
+        return self._model.optimize(maximize)
 
     def get_flux_distribution(self):
         return self._model.get_solution_vector()
@@ -333,13 +333,15 @@ class FBAModel(object):
         transporter bounds of all components to 0, upper
         """
         # reset all current transporter boundaries as a safety measure
-        transporters = list(self.get_transporters())
-        bounds = dict(itertools.izip(transporters, itertools.repeat((0.0, 0.0))))
+        bounds = dict(itertools.izip(self.get_transporters(),
+                itertools.repeat((0.0, 0.0))))
         self.modify_reaction_bounds(bounds)
         bounds = dict(itertools.izip(medium, itertools.repeat((0.0, upper))))
         self.modify_reaction_bounds(bounds)
         self.medium = medium #we could also read this from the bounds, but this way is much easier
-        return bounds
+
+    def export2lp(self, filename):
+        self._model.export2lp(filename)
 
 def generate_random_medium(transporters, percentage_range=(5, 100), minimal=list(), transp="_Transp"):
     """
@@ -361,16 +363,13 @@ def generate_random_medium(transporters, percentage_range=(5, 100), minimal=list
         The suffix for transporters in the model.
     """
     assert percentage_range[0] <= percentage_range[1]
-    
     # select a random percentage of active transporters
     active = random.sample(transporters, int(numpy.ceil(len(transporters) *
             random.uniform(*percentage_range) / 100.0)))
-    
     # since bounds is a dictionary we do not care about duplicates
     for trns in minimal:
         active.append(trns)
-    
-    return active    
+    return active
 
 def set_random_medium(model, default_bound=(20.0, 20.0),
         percentage_range=(5, 100), minimal=list(), transp="_Transp"):

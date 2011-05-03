@@ -56,7 +56,7 @@ class SBMLParser(object):
 
     def __init__(self, reaction_prefix="R_", reversible_suffix="r",
             compound_prefix="M_", compartment_suffix={"_c": "Cytosol", "_e":
-            "Extra_organism", "_b": "Exchange"}):
+            "Extra_organism", "_b": "Exchange", "_p": "Periplasm"}):
         if not self.__class__._sbml:
             try:
                 self.__class__._sbml = __import__(name="libsbml")

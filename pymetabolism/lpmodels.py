@@ -700,5 +700,10 @@ class GurobiLPModelFacade(LPModelFacade):
         else:
             self._model.setAttr("ModelSense", 1)
         self._model.optimize()
+        return self._status()
+
+    def export2lp(self, filename):
+        filename += ".lp"
+        self._model.write(filename)
 
 
