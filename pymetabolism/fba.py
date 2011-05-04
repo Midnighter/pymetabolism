@@ -26,6 +26,28 @@ import random
 import numpy
 
 
+iAF1260_minimal = ["ca2_b_Transp",
+        "cl_b_Transp",
+        "co2_b_Transp",
+        "cobalt2_b_Transp",
+        "cu2_b_Transp",
+        "fe2_b_Transp",
+        "fe3_b_Transp",
+        "h_b_Transp",
+        "h2o_b_Transp",
+        "k_b_Transp",
+        "mg2_b_Transp",
+        "mn2_b_Transp",
+        "mobd_b_Transp",
+        "na1_b_Transp",
+        "nh4_b_Transp",
+        "pi_b_Transp",
+        "so4_b_Transp",
+        "tungs_b_Transp",
+        "zn2_b_Transp",
+        "cbl1_b_Transp"]
+
+
 class FBAModel(object):
     """
     """
