@@ -175,6 +175,9 @@ class FBAModel(object):
             Map of compound names to pairs with their lower and upper bound.
         """
         self._model.modify_row_bounds(self, bounds)
+        
+    def get_reaction_bounds(self, name):
+        return self._model.get_column_bounds(name)
 
     def add_compound_drain(self, compound, suffix="_Drain", bounds=tuple()):
         """
