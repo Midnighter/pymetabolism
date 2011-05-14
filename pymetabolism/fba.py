@@ -282,6 +282,23 @@ class FBAModel(object):
                 substrates.append(cmpd)
         return (substrates,products)
 
+    def get_substrates_and_products_with_factors(self, reaction):
+        """
+        Returns
+        -------
+        tuple:
+            Pair of the names and factors of the substrates and
+            the names and factors of the products of the reaction as lists.
+        """
+        substrates=list()
+        products=list()
+        for (cmpd, factor) in self._model.get_row_names(reaction, True):
+            if factor > 0.0:
+                products.append((cmpd, factor))
+            elif factor < 0.0:
+                substrates.append((cmpd, factor))
+        return (substrates,products)
+
     def get_objective_reaction(self, coefficient=False):
         """
         Parameters
@@ -310,13 +327,13 @@ class FBAModel(object):
 
     def get_objective_value(self):
         """
-        Returns
+        Returns objective value if it is great than 1e-5 and 0 otherwise!
         -------
         float:
             Flux of the set objective reaction(s).
         """
         growth = self._model.get_objective_value()
-        return growth if growth else 0.0
+        return growth if growth and growth > 1e-5 else 0.0
 
 #    def set_objective_reaction_minimize_rest(self, reaction, factor):
 #        """
@@ -364,6 +381,19 @@ class FBAModel(object):
         bounds = dict(itertools.izip(medium, itertools.repeat((0.0, upper))))
         self.modify_reaction_bounds(bounds)
         self.medium = medium #we could also read this from the bounds, but this way is much easier
+                
+    def is_cytosolic(self, r):
+        """
+        Tests whether a reaction is cytosolic.
+        """
+        subsprod = self.get_substrates_and_products(r)
+        subs_c = reduce(lambda x, y: x and y.endswith('_c'), subsprod[0], True)
+        prod_c = reduce(lambda x, y: x and y.endswith('_c'), subsprod[1], True)
+        return subs_c and prod_c
+    
+    def is_fixed(self, r):
+        bounds = self.get_reaction_bounds(r)
+        return bounds[0] == bounds[1]
 
     def export2lp(self, filename):
         self._model.export2lp(filename)
@@ -388,12 +418,19 @@ def generate_random_medium(transporters, percentage_range=(5, 100), minimal=list
         The suffix for transporters in the model.
     """
     assert percentage_range[0] <= percentage_range[1]
+    
+    # only choose from non-minimal transporters
+    # -> ensures constant active percentage by preventing overlap
+    choices = [t for t in transporters if not t in minimal]
+    
     # select a random percentage of active transporters
-    active = random.sample(transporters, int(numpy.ceil(len(transporters) *
+    active = random.sample(choices, int(numpy.ceil(len(choices) *
             random.uniform(*percentage_range) / 100.0)))
+    
     # since bounds is a dictionary we do not care about duplicates
     for trns in minimal:
         active.append(trns)
+        
     return active
 
 def set_random_medium(model, default_bound=(20.0, 20.0),

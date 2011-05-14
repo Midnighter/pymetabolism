@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import warnings
 
 
 """
@@ -130,8 +131,14 @@ class MetabolicModelBuilder(object):
             if rxn.reversible:
                 for (cmpd, factor) in constraints.iteritems():
                     constraints[cmpd] = -factor
+                if abs(lb) == 0.0:
+#                    warnings.warn("LB is 0.0 for reversible reaction %s, setting to UB (=%e)" % (rxn.name, ub))
+                    rev_ub = ub
+                else:
+                    rev_ub = abs(lb)
+                    
                 model.add_column(rxn.name + self.suffix, constraints, (0.0,
-                        abs(lb)))
+                        rev_ub))
             if rxn.flux_value is not None:
                 if rxn.flux_value > 0.0:
                     known_fluxes[rxn.name] = rxn.flux_value
