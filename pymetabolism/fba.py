@@ -175,9 +175,12 @@ class FBAModel(object):
             Map of compound names to pairs with their lower and upper bound.
         """
         self._model.modify_row_bounds(self, bounds)
-        
-    def get_reaction_bounds(self, name):
-        return self._model.get_column_bounds(name)
+
+    def get_reaction_bounds(self, reaction):
+        if hasattr(reaction, "__iter__"):
+            return (self._model.get_column_bounds(rxn) for rxn in reaction)
+        else:
+            return self._model.get_column_bounds(reaction)
 
     def add_compound_drain(self, compound, suffix="_Drain", bounds=tuple()):
         """
@@ -265,45 +268,48 @@ class FBAModel(object):
         return (rxn for rxn in self._model.get_column_names() if
                 rxn.endswith(transp))
 
-    def get_substrates_and_products(self, reaction):
+    def get_substrates_and_products(self, reaction, coefficients=False):
         """
+        Parameters
+        ----------
+        coefficients: bool (optional)
+            Causes the returned lists to include pairs with compound names and
+            coefficients.
+
         Returns
         -------
         tuple:
             Pair of the names of the substrates and the names of the products
             of the reaction as lists.
         """
-        substrates=list()
-        products=list()
-        for (cmpd, factor) in self._model.get_row_names(reaction, True):
+
+        def compound_sorting():
             if factor > 0.0:
                 products.append(cmpd)
             elif factor < 0.0:
                 substrates.append(cmpd)
-        return (substrates,products)
 
-    def get_substrates_and_products_with_factors(self, reaction):
-        """
-        Returns
-        -------
-        tuple:
-            Pair of the names and factors of the substrates and
-            the names and factors of the products of the reaction as lists.
-        """
-        substrates=list()
-        products=list()
-        for (cmpd, factor) in self._model.get_row_names(reaction, True):
+        def compound_sorting_with_factors():
             if factor > 0.0:
                 products.append((cmpd, factor))
             elif factor < 0.0:
                 substrates.append((cmpd, factor))
+
+        substrates=list()
+        products=list()
+        if coefficients:
+            sort = compound_sorting_with_factors
+        else:
+            sort= compound_sorting
+        for (cmpd, factor) in self._model.get_row_names(reaction, True):
+            sort()
         return (substrates,products)
 
-    def get_objective_reaction(self, coefficient=False):
+    def get_objective_reaction(self, coefficients=False):
         """
         Parameters
         ----------
-        coefficient: bool (optional)
+        coefficients: bool (optional)
             Causes the returned iterator to run over pairs of reaction name and
             absolute weight in the objective function.
 
@@ -312,7 +318,7 @@ class FBAModel(object):
         iterator:
             Current reaction(s) that are used as objectives in LP.
         """
-        return self._model.get_objective(coefficient)
+        return self._model.get_objective(coefficients)
 
     def set_objective_reaction(self, reaction):
         """
@@ -325,15 +331,20 @@ class FBAModel(object):
         """
         self._model.set_objective(reaction)
 
-    def get_objective_value(self):
+    def get_objective_value(self, threshold=1E-6):
         """
-        Returns objective value if it is great than 1e-5 and 0 otherwise!
+        Parameters
+        ----------
+        threshold: float (optional)
+            Value below which the objective value is considered to be zero.
+
+        Returns
         -------
         float:
             Flux of the set objective reaction(s).
         """
         growth = self._model.get_objective_value()
-        return growth if growth and growth > 1e-5 else 0.0
+        return growth if growth > threshold else 0.0
 
 #    def set_objective_reaction_minimize_rest(self, reaction, factor):
 #        """
@@ -380,19 +391,22 @@ class FBAModel(object):
         self.modify_reaction_bounds(bounds)
         bounds = dict(itertools.izip(medium, itertools.repeat((0.0, upper))))
         self.modify_reaction_bounds(bounds)
-        self.medium = medium #we could also read this from the bounds, but this way is much easier
-                
-    def is_cytosolic(self, r):
+#        self.medium = medium #we could also read this from the bounds, but this way is much easier
+
+    def is_cytosolic(self, reaction):
         """
         Tests whether a reaction is cytosolic.
         """
-        subsprod = self.get_substrates_and_products(r)
+        subsprod = self.get_substrates_and_products(reaction)
         subs_c = reduce(lambda x, y: x and y.endswith('_c'), subsprod[0], True)
         prod_c = reduce(lambda x, y: x and y.endswith('_c'), subsprod[1], True)
         return subs_c and prod_c
-    
-    def is_fixed(self, r):
-        bounds = self.get_reaction_bounds(r)
+
+    def is_fixed(self, reaction):
+        """
+        Tests whether a reaction's lower and upper bound are equal.
+        """
+        bounds = self.get_reaction_bounds(reaction)
         return bounds[0] == bounds[1]
 
     def export2lp(self, filename):
@@ -418,19 +432,19 @@ def generate_random_medium(transporters, percentage_range=(5, 100), minimal=list
         The suffix for transporters in the model.
     """
     assert percentage_range[0] <= percentage_range[1]
-    
+
     # only choose from non-minimal transporters
     # -> ensures constant active percentage by preventing overlap
     choices = [t for t in transporters if not t in minimal]
-    
+
     # select a random percentage of active transporters
     active = random.sample(choices, int(numpy.ceil(len(choices) *
             random.uniform(*percentage_range) / 100.0)))
-    
+
     # since bounds is a dictionary we do not care about duplicates
     for trns in minimal:
         active.append(trns)
-        
+
     return active
 
 def set_random_medium(model, default_bound=(20.0, 20.0),

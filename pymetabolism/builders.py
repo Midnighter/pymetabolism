@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import warnings
 
 
 """
@@ -21,8 +20,8 @@ Metabolic Model Builder
 """
 
 
-import copy
 import numpy
+import warnings
 import pymetabolism.lpmodels as pylp
 import pymetabolism.metabolism as pymet
 

@@ -601,6 +601,21 @@ class GurobiLPModelFacade(LPModelFacade):
         """
         raise NotImplementedError("Gurobi does not support bounds for rows")
 
+    def get_column_bounds(self, name):
+        """
+        Parameters
+        ----------
+        name: str
+            Name of the column whose bounds are to be fetched.
+
+        Returns
+        -------
+        tuple:
+            A pair of the lower and upper bound of the specified column.
+        """
+        return (self._variables[name].getAttr("LB"),
+                self._variables[name].getAttr("UB"))
+
     def get_objective(self, coefficient=False):
         """
         Parameters
