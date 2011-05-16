@@ -28,14 +28,45 @@ import pymetabolism.metabolism as pymet
 from pymetabolism.errors import Error
 
 
-class CompoundCentricNetwork(nx.MultiDiGraph):
+class CompoundCentricNetwork(nx.DiGraph):
     """
     """
 
-    def __init__(self, name=""):
+    def __init__(self, name="", *args, **kw_args):
         """
         """
-        nx.MultiDiGraph.__init__(self, name=name)
+        nx.DiGraph.__init__(self, name=name, *args, **kw_args)
+
+    def count_subgraphs(self):
+        wrapper = mw.MfinderWrapper(self)
+        wrapper.count_subgraphs()
+        self.graph["mtf_counts"] = wrapper.mtf_counts
+
+    def draw(self, filename, output_format="pdf", layout_program="fdp", layout_args=""):
+        import pygraphviz as pgv
+        net = pgv.AGraph(directed=True, name=filename, strict=True)
+        node_attr= dict()
+        link_attr= dict()
+        indeces = dict()
+        # add compound nodes
+        for (i, cmpd) in enumerate(self.nodes_iter()):
+            indeces[cmpd] = i
+            net.add_node(i, label=cmpd.name, shape="circle", **node_attr)
+        # add links
+        for (u, v) in self.edges_iter():
+            net.add_edge(indeces[u], indeces[v], **link_attr)
+        filename = "%s.%s" % (filename, output_format)
+        net.draw(filename, prog=layout_program, args=layout_args)
+
+
+class CompoundCentricMultiNetwork(nx.MultiDiGraph):
+    """
+    """
+
+    def __init__(self, name="", *args, **kw_args):
+        """
+        """
+        nx.MultiDiGraph.__init__(self, name=name, *args, **kw_args)
 
     def count_subgraphs(self):
         wrapper = mw.MfinderWrapper(self.to_directed())
@@ -46,7 +77,9 @@ class CompoundCentricNetwork(nx.MultiDiGraph):
         """
         Return a copy with no multiple edges and no attributes.
         """
-        return nx.DiGraph(self.edges_iter())
+        copy = CompoundCentricNetwork(name="directed " + self.name)
+        copy.add_edges_from(self.edges_iter())
+        return copy
 
     def draw(self, filename, output_format="pdf", layout_program="fdp", layout_args=""):
         import pygraphviz as pgv
@@ -65,14 +98,45 @@ class CompoundCentricNetwork(nx.MultiDiGraph):
         net.draw(filename, prog=layout_program, args=layout_args)
 
 
-class ReactionCentricNetwork(nx.MultiDiGraph):
+class ReactionCentricNetwork(nx.DiGraph):
     """
     """
 
-    def __init__(self, name=""):
+    def __init__(self, name="", *args, **kw_args):
         """
         """
-        nx.MultiDiGraph.__init__(self, name=name)
+        nx.DiGraph.__init__(self, name=name, *args, **kw_args)
+
+    def count_subgraphs(self):
+        wrapper = mw.MfinderWrapper(self)
+        wrapper.count_subgraphs()
+        self.graph["mtf_counts"] = wrapper.mtf_counts
+
+    def draw(self, filename, output_format="pdf", layout_program="fdp", layout_args=""):
+        import pygraphviz as pgv
+        net = pgv.AGraph(directed=True, name=filename, strict=False)
+        node_attr= dict()
+        link_attr= dict()
+        indeces = dict()
+        # add reaction nodes
+        for (i, rxn) in enumerate(self.nodes_iter()):
+            indeces[rxn] = i
+            net.add_node(i, label=rxn.name, shape="box", **node_attr)
+        # add links
+        for (u, v) in self.edges_iter():
+            net.add_edge(indeces[u], indeces[v], **link_attr)
+        filename = "%s.%s" % (filename, output_format)
+        net.draw(filename, prog=layout_program, args=layout_args)
+
+
+class ReactionCentricMultiNetwork(nx.MultiDiGraph):
+    """
+    """
+
+    def __init__(self, name="", *args, **kw_args):
+        """
+        """
+        nx.MultiDiGraph.__init__(self, name=name, *args, **kw_args)
 
     def count_subgraphs(self):
         wrapper = mw.MfinderWrapper(self.to_directed())
@@ -83,7 +147,9 @@ class ReactionCentricNetwork(nx.MultiDiGraph):
         """
         Return a copy with no multiple edges and no attributes.
         """
-        return nx.DiGraph(self.edges_iter())
+        copy = CompoundCentricNetwork(name="directed " + self.name)
+        copy.add_edges_from(self.edges_iter())
+        return copy
 
     def draw(self, filename, output_format="pdf", layout_program="fdp", layout_args=""):
         import pygraphviz as pgv
@@ -319,9 +385,9 @@ class MetabolicNetwork(nx.DiGraph):
                     indeces[rev] = i
                     net.add_node(i, label=rev.name, shape="box", **node_attr)
                     # add backward reaction links
-                    for cmpd in self.predecessors(rev):
+                    for cmpd in self.predecessors(rxn):
                         net.add_edge(indeces[rev], indeces[cmpd], **link_attr)
-                    for cmpd in self.successors(rev):
+                    for cmpd in self.successors(rxn):
                         net.add_edge(indeces[cmpd], indeces[rev], **link_attr)
                     i += 1
                 else:

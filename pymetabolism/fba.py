@@ -355,7 +355,7 @@ class FBAModel(object):
         transporter bounds of all components to 0, upper
         """
         # reset all current transporter boundaries as a safety measure
-        bounds = dict(itertools.izip(self.get_transporters(),
+        bounds = dict(itertools.izip(self.get_transporters(transp),
                 itertools.repeat((0.0, 0.0))))
         self.modify_reaction_bounds(bounds)
         bounds = dict(itertools.izip(medium, itertools.repeat((0.0, upper))))
