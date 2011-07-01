@@ -9,7 +9,6 @@ Model Parsers
 
 :Authors:
     Moritz Emanuel Beber
-    Alexandra Mirela Grigore
     Nikolaus Sonnenschein
 :Date:
     2011-04-07
@@ -22,10 +21,7 @@ Model Parsers
 
 import warnings
 
-from pymetabolism.metabolism import SBMLCompound
-from pymetabolism.metabolism import SBMLCompartment
-from pymetabolism.metabolism import SBMLCompartmentCompound
-from pymetabolism.metabolism import SBMLReaction
+from .metabolism import metabolism
 
 
 class SBMLParser(object):
@@ -94,7 +90,7 @@ class SBMLParser(object):
         for (suff, name) in self.compartment_suffix.iteritems():
             if name == compartment.getId():
                 suffix = suff
-        return SBMLCompartment(name=compartment.getId(),
+        return metabolism.SBMLCompartment(name=compartment.getId(),
                 outside=compartment.getOutside(),
                 constant=compartment.getConstant(),
                 spatial_dimensions=compartment.getSpatialDimensions(),
@@ -109,7 +105,7 @@ class SBMLParser(object):
         for suffix in self.compartment_suffix:
             if identifier.endswith(suffix):
                 identifier = identifier[:-len(suffix)]
-                compartment = SBMLCompartment(self.compartment_suffix[suffix],
+                compartment = metabolism.SBMLCompartment(self.compartment_suffix[suffix],
                         suffix=suffix)
                 break
         return (identifier, compartment)
@@ -121,12 +117,12 @@ class SBMLParser(object):
         """
         (identifier, comp) = self._strip_species_id(compound.getId())
         if not comp:
-            comp = SBMLCompartment(compound.getCompartment())
-        cmpd = SBMLCompound(identifier, charge=compound.getCharge())
+            comp = metabolism.SBMLCompartment(compound.getCompartment())
+        cmpd = metabolism.SBMLCompound(identifier, charge=compound.getCharge())
         if not comp:
             return cmpd
         else:
-            return SBMLCompartmentCompound(cmpd, comp)
+            return metabolism.SBMLCompartmentCompound(cmpd, comp)
 
     def _strip_reaction_id(self, name):
         identifier = name
@@ -150,6 +146,6 @@ class SBMLParser(object):
             elem.getSpecies())),
             abs(elem.getStoichiometry())) for elem in
             reaction.getListOfProducts())
-        return SBMLReaction(identifier, substrates, products,
+        return metabolism.SBMLReaction(identifier, substrates, products,
                 reversible=reaction.getReversible(), **params)
 

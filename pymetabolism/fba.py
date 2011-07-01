@@ -10,6 +10,7 @@ Flux Balance Analysis Model
 :Authors:
     Moritz Emanuel Beber
     Alexandra Mirela Grigore
+    Nils Kölling
     Nikolaus Sonnenschein
 :Date:
     2011-03-28

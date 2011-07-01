@@ -9,14 +9,14 @@ LP Solver Interfaces
 
 :Authors:
     Moritz Emanuel Beber
-    Alexandra Mirela Grigore
+    Nils Kölling
     Nikolaus Sonnenschein
 :Date:
     2011-03-28
 :Copyright:
     Copyright(c) 2011 Jacobs University of Bremen. All rights reserved.
 :File:
-    lpmodel.py
+    lpmodels.py
 """
 
 
@@ -305,7 +305,7 @@ class LPModelFacade(object):
                 "interface to a specific LP solver")
 
 
-class GurobiLPModelFacade(LPModelFacade):
+class GurobiFacade(LPModelFacade):
     """
     A unified interface for the Gurobi LP solver.
 
@@ -336,7 +336,7 @@ class GurobiLPModelFacade(LPModelFacade):
         self._constraints = dict()
 
     def __copy__(self):
-        cpy = GurobiLPModelFacade(self.name)
+        cpy = GurobiFacade(self.name)
         cpy._model = self._model.copy()
         cpy._variables = dict()
         for col in cpy._model.getVars():

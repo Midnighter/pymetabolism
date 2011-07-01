@@ -9,8 +9,6 @@ Metabolic Network Representations
 
 :Authors:
     Moritz Emanuel Beber
-    Alexandra Mirela Grigore
-    Nikolaus Sonnenschein
 :Date:
     2011-04-13
 :Copyright:
@@ -23,9 +21,9 @@ Metabolic Network Representations
 import copy
 import itertools
 import networkx as nx
-import pymetabolism.metabolism as pymet
 
-from pymetabolism.errors import Error
+from ..metabolism import metabolism as pymet
+from ..errors import Error
 
 
 class CompoundCentricNetwork(nx.DiGraph):
@@ -36,11 +34,6 @@ class CompoundCentricNetwork(nx.DiGraph):
         """
         """
         nx.DiGraph.__init__(self, name=name, *args, **kw_args)
-
-    def count_subgraphs(self):
-        wrapper = mw.MfinderWrapper(self)
-        wrapper.count_subgraphs()
-        self.graph["mtf_counts"] = wrapper.mtf_counts
 
     def draw(self, filename, output_format="pdf", layout_program="fdp", layout_args=""):
         import pygraphviz as pgv
@@ -67,11 +60,6 @@ class CompoundCentricMultiNetwork(nx.MultiDiGraph):
         """
         """
         nx.MultiDiGraph.__init__(self, name=name, *args, **kw_args)
-
-    def count_subgraphs(self):
-        wrapper = mw.MfinderWrapper(self.to_directed())
-        wrapper.count_subgraphs()
-        self.graph["mtf_counts"] = wrapper.mtf_counts
 
     def to_directed(self):
         """
@@ -107,11 +95,6 @@ class ReactionCentricNetwork(nx.DiGraph):
         """
         nx.DiGraph.__init__(self, name=name, *args, **kw_args)
 
-    def count_subgraphs(self):
-        wrapper = mw.MfinderWrapper(self)
-        wrapper.count_subgraphs()
-        self.graph["mtf_counts"] = wrapper.mtf_counts
-
     def draw(self, filename, output_format="pdf", layout_program="fdp", layout_args=""):
         import pygraphviz as pgv
         net = pgv.AGraph(directed=True, name=filename, strict=False)
@@ -137,11 +120,6 @@ class ReactionCentricMultiNetwork(nx.MultiDiGraph):
         """
         """
         nx.MultiDiGraph.__init__(self, name=name, *args, **kw_args)
-
-    def count_subgraphs(self):
-        wrapper = mw.MfinderWrapper(self.to_directed())
-        wrapper.count_subgraphs()
-        self.graph["mtf_counts"] = wrapper.mtf_counts
 
     def to_directed(self):
         """
@@ -196,6 +174,23 @@ class MetabolicNetwork(nx.DiGraph):
             raise Error("unidentified metabolic component")
         nx.DiGraph.add_edge(self, u, v, **kw_args)
 
+    def remove_edge(self, u, v):
+        """
+        """
+        if isinstance(u, pymet.BasicReaction):
+            self.reactions.remove(u)
+        elif isinstance(u, pymet.BasicCompound):
+            self.compounds.remove(u)
+        else:
+            raise Error("unidentified metabolic component")
+        if isinstance(v, pymet.BasicReaction):
+            self.reactions.remove(v)
+        elif isinstance(v, pymet.BasicCompound):
+            self.compounds.remove(v)
+        else:
+            raise Error("unidentified metabolic component")
+        nx.DiGraph.remove_edge(self, u, v)
+
     def add_node(self, n, **kw_args):
         """
         """
@@ -206,6 +201,17 @@ class MetabolicNetwork(nx.DiGraph):
         else:
             raise Error("unidentified metabolic component")
         nx.DiGraph.add_node(self, n)
+
+    def remove_node(self, n):
+        """
+        """
+        if isinstance(n, pymet.BasicReaction):
+            self.reactions.remove(n)
+        elif isinstance(n, pymet.BasicCompound):
+            self.compounds.remove(n)
+        else:
+            raise Error("unidentified metabolic component")
+        nx.DiGraph.remove_node(self, n)
 
     def introduce_bidirectional(self):
 
@@ -232,9 +238,6 @@ class MetabolicNetwork(nx.DiGraph):
             for cmpd in self.successors_iter(rxn):
                 new_edge(rxn, cmpd)
         return template
-
-    def count_subgraphs(self):
-        raise NotImplementedError("motifs are not defined for bipartite graphs")
 
     def read_edgelist(self, path, compound_prefix="M", reaction_prefix="R_",
             reversible_suffix="_Rev", delimiter=None, comments="#"):
@@ -313,7 +316,7 @@ class MetabolicNetwork(nx.DiGraph):
             network.add_edge(u, v)
             network.add_edge(v, u)
 
-        network = CompoundCentricNetwork("compound_centric_" + self.name)
+        network = CompoundCentricMultiNetwork("compound_centric_" + self.name)
         # project to unipartite network with only compound nodes
         for cmpd in self.compounds:
             network.add_node(cmpd)
@@ -332,7 +335,7 @@ class MetabolicNetwork(nx.DiGraph):
     def to_reaction_centric(self):
         """
         """
-        network = ReactionCentricNetwork("reaction_centric_" + self.name)
+        network = ReactionCentricMultiNetwork("reaction_centric_" + self.name)
         # project to unipartite network with only reaction nodes
         for rxn in self.reactions:
             network.add_node(rxn)

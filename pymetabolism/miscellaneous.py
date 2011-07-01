@@ -1,0 +1,49 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+
+"""
+===================
+Library Miscellanea
+===================
+
+:Authors:
+    Moritz Emanuel Beber
+:Date:
+    2011-07-01
+:Copyright:
+    Copyright(c) 2011 Jacobs University of Bremen. All rights reserved.
+:File:
+    miscellaneous.py
+"""
+
+
+import logging
+
+from .singletonmixin import Singleton
+
+
+class NullHandler(logging.Handler):
+    """
+    A stub logging handler that ignores all logging messages. This is the
+    default handler for all library loggers.
+    """
+
+    def emit(self, record):
+        pass
+
+
+class OptionsManager(Singleton):
+    """
+    A centralised instance to handle some common options throughout this
+    library.
+    """
+
+    def __init__(self, *args, **kw_args):
+        Singleton.__init__(self, *args, **kw_args)
+        self.compound_prefix = "M_"
+        self.reaction_prefix = "R_"
+        self.reversible_suffix = "_Rev"
+        self.compartments = {"_c": "Cytosol", "_e": "Extra_organism",
+                "_b": "Exchange", "_p": "Periplasm"}
+

@@ -9,23 +9,22 @@ Metabolic Model Builder
 
 :Authors:
     Moritz Emanuel Beber
-    Alexandra Mirela Grigore
     Nikolaus Sonnenschein
 :Date:
     2011-04-03
 :Copyright:
     Copyright(c) 2011 Jacobs University of Bremen. All rights reserved.
 :File:
-    builder.py
+    builders.py
 """
 
 
 import numpy
 import warnings
-import pymetabolism.lpmodels as pylp
-import pymetabolism.metabolism as pymet
 
-from pymetabolism.parsers import SBMLParser
+from .lpmodels import GurobiFacade
+from .metabolism import metabolism as pymet
+from .parsers import SBMLParser
 
 
 class MetabolicModelBuilder(object):
@@ -52,7 +51,7 @@ class MetabolicModelBuilder(object):
         text
         """
         if lp_solver.lower() == "gurobi":
-            self._model = pylp.GurobiLPModelFacade()
+            self._model = GurobiFacade()
         else:
             pass
         if parser.lower() == "sbml":
@@ -135,7 +134,6 @@ class MetabolicModelBuilder(object):
                     rev_ub = ub
                 else:
                     rev_ub = abs(lb)
-                    
                 model.add_column(rxn.name + self.suffix, constraints, (0.0,
                         rev_ub))
             if rxn.flux_value is not None:
@@ -154,7 +152,7 @@ class MetabolicModelBuilder(object):
 
     def generate_network(self, path, name="", disjoint_reversible=False,
             stoichiometric_factors=False):
-        from pymetabolism.networks import MetabolicNetwork
+        from .network.networks import MetabolicNetwork
         self._parser.parse(path)
         net = MetabolicNetwork(name)
         for rxn in self._parser.reactions:

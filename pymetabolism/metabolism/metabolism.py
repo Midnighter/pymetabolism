@@ -9,7 +9,6 @@ Metabolic Components
 
 :Authors:
     Moritz Emanuel Beber
-    Alexandra Mirela Grigore
     Nikolaus Sonnenschein
 :Date:
     2011-04-07
