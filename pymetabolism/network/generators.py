@@ -44,13 +44,15 @@ def prune_network(network):
     num_rxns = len(network.reactions)
     num_cmpds = len(network.compounds)
     total = 0
+    prune = list()
     for rxn in network.reactions:
         in_deg = network.in_degree(rxn)
         out_deg = network.out_degree(rxn)
         if in_deg == 0:
             if out_deg <= 1:
-                network.remove_node(rxn)
-                logger.debug("removed reaction %s", str(rxn))
+                prune.append(rxn)
+#                network.remove_node(rxn)
+#                logger.debug("removed reaction %s", str(rxn))
             else:
                 targets = network.successors(rxn)
                 flips = rand_int(1, len(targets) - 1)
@@ -66,14 +68,15 @@ def prune_network(network):
                     total += 1
         elif out_deg == 0:
             if in_deg <= 1:
-                network.remove_node(rxn)
-                logger.debug("removed reaction %s", str(rxn))
+                prune.append(rxn)
+#                network.remove_node(rxn)
+#                logger.debug("removed reaction %s", str(rxn))
             else:
                 targets = network.predecessors(rxn)
                 flips = rand_int(1, len(targets) - 1)
                 while (flips > 0):
                     target = targets[rand_int(0, len(targets) - 1)]
-                    factor = network[rxn][target]["coefficient"]
+                    factor = network[target][rxn]["coefficient"]
                     network.remove_edge(target, rxn)
                     network.add_edge(rxn, target, coefficient=factor)
                     logger.debug("flipped direction of link %s -> %s",
@@ -81,6 +84,9 @@ def prune_network(network):
                     targets.remove(target)
                     flips -= 1
                     total += 1
+    for rxn in prune:
+        network.remove_node(rxn)
+        logger.debug("removed reaction %s", str(rxn))
     for cmpd in network.compounds:
         if network.degree(cmpd) == 0:
             network.remove_node(cmpd)

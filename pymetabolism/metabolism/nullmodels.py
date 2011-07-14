@@ -18,6 +18,7 @@ Metabolic Null Models
 """
 
 
+import itertools
 import numpy
 import networkx as nx
 
@@ -111,13 +112,13 @@ def lp_balance(network, coefficients, solver="gurobi", seed=None):
     for (i, metb) in enumerate(metbs):
         metb_idx[metb] = i
         mass[metb] = rnd.random()
-    # map with reaction rates
-    rates = dict()
+#    # map with reaction rates
+#    rates = dict()
     # map with reaction matrix-indeces
     rxn_idx = dict()
     for (i, rxn) in enumerate(rxns):
         rxn_idx[rxn] = i
-        # rates[rxn] = rnd.random() # not required atm
+#        rates[rxn] = rnd.random() # not required atm
     m = len(metbs)
     n = len(rxns)
     # problem: minimise sum over stoichiometric coefficients

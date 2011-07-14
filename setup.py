@@ -37,7 +37,9 @@ setup(
     author_email = "moritz (dot) beber (at) googlemail (dot) com",
     url = "http://github.com/Midnighter/pymetabolism",
     packages = ["pymetabolism",
+            "pymetabolism.metabolism",
+            "pymetabolism.network",
             "pymetabolism.tests"],
-    package_data = {"pymetabolism.tests": ["data/*.xml", "data/*lp"]},
+    package_data = {"pymetabolism.tests": ["data/*xml", "data/*lp"]},
     )
 

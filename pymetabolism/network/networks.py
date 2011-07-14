@@ -24,6 +24,7 @@ import networkx as nx
 
 from ..metabolism import metabolism as pymet
 from ..errors import Error
+from .. import miscellaneous as misc
 
 
 class CompoundCentricNetwork(nx.DiGraph):
@@ -239,28 +240,26 @@ class MetabolicNetwork(nx.DiGraph):
                 new_edge(rxn, cmpd)
         return template
 
-    def read_edgelist(self, path, compound_prefix="M", reaction_prefix="R_",
-            reversible_suffix="_Rev", delimiter=None, comments="#"):
+    def read_edgelist(self, path, delimiter=None, comments="#"):
         """
         """
 
         def build_node(name):
-            if name.startswith(compound_prefix):
-                compound = pymet.BasicCompound(name[len(compound_prefix):])
-#                self.compounds.add(compound)
+            if name.startswith(options.compound_prefix):
+                compound = pymet.BasicCompound(name[len(options.compound_prefix):])
                 return compound
-            elif name.startswith(reaction_prefix):
-                if name.endswith(reversible_suffix):
-                    reaction = pymet.BasicReaction(name[len(reaction_prefix):
-                            -len(reversible_suffix)], reversible=True)
+            elif name.startswith(options.reaction_prefix):
+                if name.endswith(options.reversible_suffix):
+                    reaction = pymet.BasicReaction(name[len(options.reaction_prefix):
+                            -len(options.reversible_suffix)], reversible=True)
                     reaction.reversible = True
                 else:
-                    reaction = pymet.BasicReaction(name[len(reaction_prefix):])
-#                self.reactions.add(reaction)
+                    reaction = pymet.BasicReaction(name[len(options.reaction_prefix):])
                 return reaction
             else:
                 raise TypeError("unrecognised metabolic object")
 
+        options = misc.OptionsManager.get_instance()
         with open(path, "r") as file_handle:
             lines = [line.strip() for line in file_handle]
         for line in lines:
@@ -268,42 +267,44 @@ class MetabolicNetwork(nx.DiGraph):
                 continue
             tmp = line.split(delimiter)
             u = build_node(tmp[0])
-            if isinstance(u, pymet.BasicReaction) and tmp[0].endswith(reversible_suffix):
+            if isinstance(u, pymet.BasicReaction) and\
+                    tmp[0].endswith(options.reversible_suffix):
                 continue
             v = build_node(tmp[1])
-            if isinstance(v, pymet.BasicReaction) and tmp[1].endswith(reversible_suffix):
+            if isinstance(v, pymet.BasicReaction) and\
+                    tmp[1].endswith(options.reversible_suffix):
                 continue
             self.add_edge(u, v)
 
-    def write_edgelist(self, path, distinct=True, compound_prefix="M_",
-            reaction_prefix="R_", reversible_suffix="_Rev", delimiter="\t",
-            comments="#"):
+    def write_edgelist(self, path, distinct=True, delimiter="\t", comments="#"):
         """
         """
+        options = misc.OptionsManager.get_instance()
         lines = list()
         for rxn in self.reactions:
-            rxn_name = reaction_prefix + rxn.name
+            rxn_name = options.reaction_prefix + rxn.name
             if rxn.reversible:
                 if distinct:
-                    rev_name = reaction_prefix + rxn.name + reversible_suffix
+                    rev_name = "%s%s%s" % (options.reaction_prefix, rxn.name,
+                            options.reversible_suffix)
                 else:
                     rev_name = rxn_name
                 for cmpd in network.successors_iter(rxn):
-                    lines.append("%s%s%s\n" % (rxn_name, delimiter, compound_prefix
+                    lines.append("%s%s%s\n" % (rxn_name, delimiter, options.compound_prefix
                             + cmpd.name))
-                    lines.append("%s%s%s\n" % (compound_prefix + cmpd.name,
+                    lines.append("%s%s%s\n" % (options.compound_prefix + cmpd.name,
                             delimiter, rev_name))
                 for cmpd in network.predecessors_iter(rxn):
-                    lines.append("%s%s%s\n" % (compound_prefix + cmpd.name,
+                    lines.append("%s%s%s\n" % (options.compound_prefix + cmpd.name,
                             delimiter, rxn_name))
-                    lines.append("%s%s%s\n" % (rev_name, delimiter, compound_prefix
+                    lines.append("%s%s%s\n" % (rev_name, delimiter, options.compound_prefix
                             + cmpd.name))
             else:
                 for cmpd in network.successors_iter(rxn):
-                    lines.append("%s%s%s\n" % (rxn_name, delimiter, compound_prefix
+                    lines.append("%s%s%s\n" % (rxn_name, delimiter, options.compound_prefix
                             + cmpd.name))
                 for cmpd in network.predecessors_iter(rxn):
-                    lines.append("%s%s%s\n" % (compound_prefix + cmpd.name,
+                    lines.append("%s%s%s\n" % (options.compound_prefix + cmpd.name,
                             delimiter, rxn_name))
         with open(path, "w") as file_handle:
             file_handle.writelines(lines)
@@ -362,8 +363,9 @@ class MetabolicNetwork(nx.DiGraph):
         return network
 
     def draw(self, filename, output_format="pdf", layout_program="fdp",
-                layout_args="", distinct=False, reversible_suffix="_Rev"):
+                layout_args="", distinct=False):
         import pygraphviz as pgv
+        options = misc.OptionsManager.get_instance()
         net = pgv.AGraph(directed=True, name=filename, strict=True)
         node_attr= dict()
         link_attr= dict()
@@ -384,7 +386,7 @@ class MetabolicNetwork(nx.DiGraph):
                 net.add_edge(indeces[rxn], indeces[cmpd], **link_attr)
             if rxn.reversible:
                 if distinct:
-                    rev = pymet.BasicReaction(rxn.name + reversible_suffix)
+                    rev = pymet.BasicReaction(rxn.name + options.reversible_suffix)
                     indeces[rev] = i
                     net.add_node(i, label=rev.name, shape="box", **node_attr)
                     # add backward reaction links
