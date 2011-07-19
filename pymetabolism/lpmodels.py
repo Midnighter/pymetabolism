@@ -309,7 +309,7 @@ class GurobiFacade(LPModelFacade):
                         "this functionality, see http://www.gurobi.com/")
 
         LPModelFacade.__init__(self, name)
-        self._gurobipy.GRB.Param.OutputFlag = 0
+        self._gurobipy.setParam("OutputFlag", 0)
         self._model = self._gurobipy.Model(name)
         self._variables = dict()
         self._constraints = dict()
@@ -633,32 +633,32 @@ class GurobiFacade(LPModelFacade):
 
     def _status(self):
         status = self._model.getAttr("Status")
-        if status == gurobipy.GRB.LOADED:
+        if status == self._gurobipy.GRB.LOADED:
             logger.warn("optimize before retrieving the objective value")
-        elif status == gurobipy.GRB.OPTIMAL:
+        elif status == self._gurobipy.GRB.OPTIMAL:
             return self._model.getAttr("ObjVal")
-        elif status == gurobipy.GRB.INFEASIBLE:
+        elif status == self._gurobipy.GRB.INFEASIBLE:
             logger.warn("model is infeasible")
-        elif status == gurobipy.GRB.INF_OR_UNBD:
+        elif status == self._gurobipy.GRB.INF_OR_UNBD:
             logger.warn("model is infeasible or unbounded")
-        elif status == gurobipy.GRB.UNBOUNDED:
+        elif status == self._gurobipy.GRB.UNBOUNDED:
             logger.warn("model is unbounded")
-        elif status == gurobipy.GRB.CUTOFF:
+        elif status == self._gurobipy.GRB.CUTOFF:
             logger.warn("model solution is worse than provided cut-off")
-        elif status == gurobipy.GRB.ITERATION_LIMIT:
+        elif status == self._gurobipy.GRB.ITERATION_LIMIT:
             logger.warn("iteration limit exceeded")
-        elif status == gurobipy.GRB.NODE_LIMIT:
+        elif status == self._gurobipy.GRB.NODE_LIMIT:
             logger.warn("node limit exceeded")
-        elif status == gurobipy.GRB.TIME_LIMIT:
+        elif status == self._gurobipy.GRB.TIME_LIMIT:
             logger.warn("time limit exceeded")
-        elif status == gurobipy.GRB.SOLUTION_LIMIT:
+        elif status == self._gurobipy.GRB.SOLUTION_LIMIT:
             return self._model.getAttr("ObjVal")
-        elif status == gurobipy.GRB.INTERRUPTED:
+        elif status == self._gurobipy.GRB.INTERRUPTED:
             logger.warn("optimization process was interrupted")
-        elif status == gurobipy.GRB.SUBOPTIMAL:
+        elif status == self._gurobipy.GRB.SUBOPTIMAL:
             logger.warn("solution is suboptimal")
             return self._model.getAttr("ObjVal")
-        elif status == gurobipy.GRB.NUMERIC:
+        elif status == self._gurobipy.GRB.NUMERIC:
             logger.warn("optimization aborted due to numeric difficulties")
         return status
 
@@ -704,5 +704,4 @@ class GurobiFacade(LPModelFacade):
     def export2lp(self, filename):
         filename += ".lp"
         self._model.write(filename)
-warnings
 

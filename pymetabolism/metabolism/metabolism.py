@@ -19,6 +19,16 @@ Metabolic Components
 """
 
 
+import logging
+
+from ..errors import PyMetabolismError
+from .. import miscellaneous as misc
+
+
+logger = logging.getLogger(__name__)
+logger.addHandler(misc.NullHandler())
+
+
 class BasicMetabolicComponent(object):
     """
     Base class for all components of a metabolic model system.
@@ -339,6 +349,9 @@ class SBMLReaction(BasicReaction):
         self.flux_value = flux_value
         self._consistency_check()
 
+    def __iter__(self):
+        return (cmpd for cmpd in self.substrates.keys() + self.products.keys())
+
     def __contains__(self, compound):
         """
         Parameters
@@ -448,4 +461,235 @@ class SBMLReaction(BasicReaction):
             A compound instance whose status as educt or product is queried.
         """
         return compound in self.substrates
+
+class MetabolicSystem(object):
+    """
+    Basically a container for reactions and compounds with some useful
+    transformation functions.
+    """
+
+    def __init__(self, name="", compartments=[], reactions=[], compounds=[]):
+        """
+        Parameters
+        ----------
+        name: str
+            A string uniquely identifying the MetabolicSystem instance.
+        reactions: iterable
+            An iterable of BasicReaction instances. Compounds within those
+            reactions are automatically added to the system.
+        compounds: iterable
+            Additional compounds not contained in the reactions that should be
+            added to the system.
+        """
+        object.__init__(self)
+        self.name = name
+        self._options = misc.OptionsManager.get_instance()
+        self.compartments = set(compartments)
+        self.reactions = set(reactions)
+        self.compounds = set(compounds)
+        for rxn in self.reactions:
+            self._update_compounds_compartments(rxn)
+
+    def _update_compounds_compartments(self, reaction):
+        """
+        Add compounds and compartments contained within a reaction to the
+        instance container.
+        """
+        if hasattr(reaction, "__iter__"):
+            for cmpd in reaction:
+                self.compounds.add(cmpd)
+                if hasattr(cmpd, "compartment"):
+                    self.compartments.add(cmpd.compartment)
+
+    def add(self, entity):
+        """
+        Adds a single compartment, reaction, or compound to the metabolic
+        system.
+
+        Parameters
+        ----------
+        entity:
+            A child instance of BasicMetabolicComponent.
+        """
+        if isinstance(entity, BasicReaction):
+            self.reactions.add(entity)
+            self._update_compounds_compartments(entity)
+        elif isinstance(entity, BasicCompound):
+            self.compounds.add(entity)
+        elif isinstance(entity, BasicMetabolicComponent):
+            self.compartments.add(entity)
+        else:
+            PyMetabolismError("unrecognised metabolic component '%s'", entity)
+
+    def update(self, items, typeof):
+        """
+        Adds a compartments, reactions, or compounds to the metabolic
+        system.
+
+        Parameters
+        ----------
+        items: iterable
+            Iterable of BasicMetabolicComponents.
+        typeof: class
+            The specific type of the items.
+        """
+        items = set(items)
+        if issubclass(typeof, BasicReaction):
+            self.reactions.update(items)
+            for rxn in items:
+                self._update_compounds_compartments(items)
+        elif issubclass(typeof, BasicCompound):
+            self.compounds.update(items)
+        elif issubclass(typeof, BasicMetabolicComponent):
+            self.compartments.update(items)
+        else:
+            PyMetabolismError("unrecognised metabolic component type %s", typeof)
+
+    def generate_fba_model(self):
+        """
+        Generate a model fit for flux balance analysis from the metabolic
+        system.
+        """
+        from ..fba import FBAModel
+        from .. import lpmodels
+        if self._options.lp_solver.lower() == "gurobi":
+            model = lpmodels.GurobiFacade()
+        else:
+            pass
+
+#        def parse_exchange(reaction):
+#            reaction.name = reaction.name[3:-3]
+#            constraints = dict()
+#            comp = metabolism.SBMLCompartment("Exchange")
+#            for cmpd in reaction.substrates:
+#                if cmpd.compartment == comp:
+#                    continue
+#                constraints[cmpd.name] = abs(reaction.stoichiometric_coeff(cmpd))
+#            for cmpd in reaction.products:
+#                if cmpd.compartment == comp:
+#                    continue
+#                constraints[cmpd.name] = reaction.stoichiometric_coeff(cmpd)
+#            if rxn.lower_bound is not None:
+#                lb = rxn.lower_bound
+#            else:
+#                lb = -numpy.inf
+#            if reaction.upper_bound is not None:
+#                ub = reaction.upper_bound
+#            else:
+#                ub = numpy.inf
+#            # exchange reactions are inversed
+#            if lb >= 0.0:
+#                model.add_column(rxn.name + "_Drain", constraints, (lb, ub))
+#            else:
+#                model.add_column(rxn.name + "_Drain", constraints, (0.0, ub))
+#            for (cmpd, factor) in constraints.iteritems():
+#                constraints[cmpd] = -factor
+#            if lb < 0.0:
+#                model.add_column(rxn.name + "_Transp", constraints, (0.0, abs(lb)))
+#            else:
+#                model.add_column(rxn.name + "_Transp", constraints, (0.0, ub))
+#            if reaction.flux_value is not None:
+#                if reaction.flux_value > 0.0:
+#                    known_fluxes[reaction.name + "_Drain"] = reaction.flux_value
+#                elif reaction.flux_value < 0.0:
+#                    known_fluxes[reaction.name + "_Transp"] = abs(reaction.flux_value)
+#                else:
+#                    known_fluxes[reaction.name + "_Transp"] = 0.0
+#                    known_fluxes[reaction.name + "_Drain"] = 0.0
+
+        known_fluxes = dict()
+        objectives = dict()
+        for rxn in self.reactions:
+#            if rxn.name.startswith("EX"):
+#                parse_exchange(rxn)
+#                continue
+            constraints = dict()
+            for cmpd in rxn.substrates:
+                constraints[cmpd.name] = rxn.stoichiometric_coeff(cmpd)
+            for cmpd in rxn.products:
+                constraints[cmpd.name] = rxn.stoichiometric_coeff(cmpd)
+            if rxn.lower_bound is not None:
+                lb = rxn.lower_bound
+            else:
+                lb = -numpy.inf
+            if rxn.upper_bound is not None:
+                ub = rxn.upper_bound
+            else:
+                ub = numpy.inf
+            if lb >= 0.0:
+                model.add_column(rxn.name, constraints, (lb, ub))
+            else:
+                model.add_column(rxn.name, constraints, (0.0, ub))
+            if rxn.reversible:
+                for (cmpd, factor) in constraints.iteritems():
+                    constraints[cmpd] = -factor
+                if abs(lb) == 0.0:
+                    logger.warn("LB is 0.0 for reversible reaction %s, setting to UB (=%e)",
+                            (rxn.name, ub))
+                    rev_ub = ub
+                else:
+                    rev_ub = abs(lb)
+                model.add_column(rxn.name + self._options.reversible_suffix,
+                        constraints, (0.0, rev_ub))
+            if rxn.flux_value is not None:
+                if rxn.flux_value > 0.0:
+                    known_fluxes[rxn.name] = rxn.flux_value
+                elif rxn.flux_value < 0.0:
+                    known_fluxes[rxn.name + self._options.reversible_suffix] =\
+                            abs(rxn.flux_value)
+                else:
+                    known_fluxes[rxn.name] = 0.0
+                    if rxn.reversible:
+                        known_fluxes[rxn.name + self._options.reversible_suffix] = 0.0
+            if rxn.objective_coefficient:
+                objectives[rxn.name] = rxn.objective_coefficient
+        model.set_objective(objectives)
+        return (FBAModel(model), known_fluxes)
+
+    def generate_network(self, disjoint_reversible=False,
+            stoichiometric_factors=False):
+        """
+        Generate a network from the metabolic system.
+        """
+        from ..network.networks import MetabolicNetwork
+        net = MetabolicNetwork(self.name)
+        for rxn in self.reactions:
+            for cmpd in rxn.substrates:
+                if stoichiometric_factors:
+                    net.add_edge(metabolism.BasicCompound(cmpd.name),
+                            metabolism.BasicReaction(rxn.name, rxn.reversible),
+                            stoichiometry=abs(rxn.stoichiometric_coeff(cmpd)))
+                else:
+                    net.add_edge(metabolism.BasicCompound(cmpd.name),
+                            metabolism.BasicReaction(rxn.name, rxn.reversible))
+            for cmpd in rxn.products:
+                if stoichiometric_factors:
+                    net.add_edge(metabolism.BasicReaction(rxn.name, rxn.reversible),
+                            metabolism.BasicCompound(cmpd.name),
+                            stoichiometry=abs(rxn.stoichiometric_coeff(cmpd)))
+                else:
+                    net.add_edge(metabolism.BasicReaction(rxn.name, rxn.reversible),
+                            metabolism.BasicCompound(cmpd.name))
+            if disjoint_reversible and rxn.reversible:
+                for cmpd in rxn.substrates:
+                    if stoichiometric_factors:
+                        net.add_edge(metabolism.BasicReaction(
+                                rxn.name + self._options.reversible_suffix,
+                                rxn.reversible), metabolism.BasicCompound(cmpd.name),
+                                stoichiometry=abs(rxn.stoichiometric_coeff(cmpd)))
+                    else:
+                        net.add_edge(metabolism.BasicReaction(
+                                rxn.name + self._options.reversible_suffix,
+                                rxn.reversible), metabolism.BasicCompound(cmpd.name))
+                for cmpd in rxn.products:
+                    if stoichiometric_factors:
+                        net.add_edge(metabolism.BasicCompound(cmpd.name),
+                                metabolism.BasicReaction(
+                                        rxn.name + self._options.reversible_suffix,
+                                        rxn.reversible),
+                                        stoichiometry=abs(rxn.stoichiometric_coeff(cmpd)))
+                    else:
+                        net.add_edge(metabolism.BasicCompound(cmpd.name),
+                                metabolism.BasicReaction(rxn.name, rxn.reversible))
+        return net
 

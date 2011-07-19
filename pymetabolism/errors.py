@@ -21,7 +21,7 @@ Exceptions
 import errno
 
 
-class Error(StandardError):
+class PyMetabolismError(StandardError):
     """
     An error for all exceptions that occur in the usage of the pymetabolism
     package.

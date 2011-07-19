@@ -414,9 +414,11 @@ class FBAModel(object):
         self._model.export2lp(filename)
 
     def verify_consistency(self):
+        pass
 
 
-def generate_random_medium(transporters, percentage_range=(5, 100), minimal=list(), transp="_Transp"):
+def generate_random_medium(transporters, percentage_range=(5, 100),
+        minimal=list(), transp="_Transp"):
     """
     Generates a completely random medium based on a percentage of activated
     transporters.

@@ -46,4 +46,6 @@ class OptionsManager(Singleton):
         self.reversible_suffix = "_Rev"
         self.compartments = {"_c": "Cytosol", "_e": "Extra_organism",
                 "_b": "Exchange", "_p": "Periplasm"}
+        self.parser = "SBML"
+        self.lp_solver = "gurobi"
 

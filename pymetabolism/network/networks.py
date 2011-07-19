@@ -14,7 +14,7 @@ Metabolic Network Representations
 :Copyright:
     Copyright(c) 2011 Jacobs University of Bremen. All rights reserved.
 :File:
-    network.py
+    networks.py
 """
 
 
@@ -23,7 +23,7 @@ import itertools
 import networkx as nx
 
 from ..metabolism import metabolism as pymet
-from ..errors import Error
+from ..errors import PyMetabolismError
 from .. import miscellaneous as misc
 
 
@@ -166,13 +166,13 @@ class MetabolicNetwork(nx.DiGraph):
         elif isinstance(u, pymet.BasicCompound):
             self.compounds.add(u)
         else:
-            raise Error("unidentified metabolic component")
+            raise PyMetabolismError("unidentified metabolic component")
         if isinstance(v, pymet.BasicReaction):
             self.reactions.add(v)
         elif isinstance(v, pymet.BasicCompound):
             self.compounds.add(v)
         else:
-            raise Error("unidentified metabolic component")
+            raise PyMetabolismError("unidentified metabolic component")
         nx.DiGraph.add_edge(self, u, v, **kw_args)
 
     def remove_edge(self, u, v):
@@ -183,13 +183,13 @@ class MetabolicNetwork(nx.DiGraph):
         elif isinstance(u, pymet.BasicCompound):
             self.compounds.remove(u)
         else:
-            raise Error("unidentified metabolic component")
+            raise PyMetabolismError("unidentified metabolic component")
         if isinstance(v, pymet.BasicReaction):
             self.reactions.remove(v)
         elif isinstance(v, pymet.BasicCompound):
             self.compounds.remove(v)
         else:
-            raise Error("unidentified metabolic component")
+            raise PyMetabolismError("unidentified metabolic component")
         nx.DiGraph.remove_edge(self, u, v)
 
     def add_node(self, n, **kw_args):
@@ -200,7 +200,7 @@ class MetabolicNetwork(nx.DiGraph):
         elif isinstance(n, pymet.BasicCompound):
             self.compounds.add(n, **kw_args)
         else:
-            raise Error("unidentified metabolic component")
+            raise PyMetabolismError("unidentified metabolic component")
         nx.DiGraph.add_node(self, n)
 
     def remove_node(self, n):
@@ -211,7 +211,7 @@ class MetabolicNetwork(nx.DiGraph):
         elif isinstance(n, pymet.BasicCompound):
             self.compounds.remove(n)
         else:
-            raise Error("unidentified metabolic component")
+            raise PyMetabolismError("unidentified metabolic component")
         nx.DiGraph.remove_node(self, n)
 
     def introduce_bidirectional(self):
