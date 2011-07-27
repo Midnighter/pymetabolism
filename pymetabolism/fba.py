@@ -178,6 +178,20 @@ class FBAModel(object):
         self._model.modify_row_bounds(self, bounds)
 
     def get_reaction_bounds(self, reaction):
+        """
+        Query the bounds on reactions currently in place.
+
+        Parameters
+        ----------
+        reaction : str or iterable
+            A reaction identifier or an iterable of reaction identifiers.
+
+        Returns
+        -------
+        tuple or iterator over tuples:
+            The lower and upper bound on a reaction or an iterator over pairs in
+            the same order as the iterable provided.
+        """
         if hasattr(reaction, "__iter__"):
             return (self._model.get_column_bounds(rxn) for rxn in reaction)
         else:
@@ -394,15 +408,6 @@ class FBAModel(object):
         self.modify_reaction_bounds(bounds)
 #        self.medium = medium #we could also read this from the bounds, but this way is much easier
 
-    def is_cytosolic(self, reaction):
-        """
-        Tests whether a reaction is cytosolic.
-        """
-        subsprod = self.get_substrates_and_products(reaction)
-        subs_c = reduce(lambda x, y: x and y.endswith('_c'), subsprod[0], True)
-        prod_c = reduce(lambda x, y: x and y.endswith('_c'), subsprod[1], True)
-        return subs_c and prod_c
-
     def is_fixed(self, reaction):
         """
         Tests whether a reaction's lower and upper bound are equal.
@@ -412,9 +417,6 @@ class FBAModel(object):
 
     def export2lp(self, filename):
         self._model.export2lp(filename)
-
-    def verify_consistency(self):
-        pass
 
 
 def generate_random_medium(transporters, percentage_range=(5, 100),

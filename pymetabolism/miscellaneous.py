@@ -49,3 +49,31 @@ class OptionsManager(Singleton):
         self.parser = "SBML"
         self.lp_solver = "gurobi"
 
+    def get_lp_model(self, name=""):
+        """
+        Returns
+        -------
+        A new LP model with universal interface but underlying solver chosen
+        according to the lp_solver attribute.
+        """
+        from . import lpmodels
+        if self.lp_solver.lower() == "gurobi":
+            return lpmodels.GurobiFacade(name=name)
+        else:
+            raise NotImplementedError("No other LP solvers are supported at"\
+            " the moment")
+
+    def get_parser(self):
+        """
+        Returns
+        -------
+        A parser of the correct variant for the current parser attribute type.
+        """
+        from . import parsers
+        if self.parser.lower() == "sbml":
+            return parsers.SBMLParser()
+        else:
+            raise NotImplementedError("No other parsers are supported at"\
+            " the moment")
+
+

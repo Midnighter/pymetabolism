@@ -19,5 +19,5 @@ Python Metabolic Modelling
 """
 
 
-from .builders import MetabolicModelBuilder
+from .miscellaneous import OptionsManager
 

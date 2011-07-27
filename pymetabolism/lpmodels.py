@@ -361,6 +361,7 @@ class GurobiFacade(LPModelFacade):
             msg = "replacing existing row '%s'\n%s" % (name, msg)
             logger.warn(msg)
             self._model.remove(self._constraints.pop(name))
+            self._model.update()
         self._constraints[name] = self._model.addConstr(self._gurobipy.LinExpr(
                 coefficients.values(), [self._variables[column] for column in
                 coefficients.iterkeys()]), self._gurobipy.GRB.EQUAL, 0.0,
