@@ -44,7 +44,7 @@ class SBMLParser(object):
                 raise ImportError("libsbml is required for this functionality,"\
                         " see http://sbml.org/Software/libSBML")
         object.__init__(self)
-        self._options = misc.OptionsManager.get_instance()
+        self._options = misc.OptionsManager()
 
     def parse(self, path):
         """

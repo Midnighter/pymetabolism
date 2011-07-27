@@ -133,7 +133,7 @@ def random_p_mn(num_compounds, num_reactions, num_reversible, p, seed=None):
     num_reactions = int(num_reactions)
     num_reversible = int(num_reversible)
     p = float(p)
-    options = misc.OptionsManager.get_instance()
+    options = misc.OptionsManager()
     network = nets.MetabolicNetwork()
     # add compounds
     for i in range(num_compounds):
@@ -189,7 +189,7 @@ def random_scale_free_mn(num_compounds, num_reactions, num_reversible,
     num_reversible = int(num_reversible)
     num_rxn_tar = int(num_rxn_tar)
     num_cmpd_tar = int(num_cmpd_tar)
-    options = misc.OptionsManager.get_instance()
+    options = misc.OptionsManager()
     network = nets.MetabolicNetwork()
     # target nodes for reactions
     rxn_targets = []

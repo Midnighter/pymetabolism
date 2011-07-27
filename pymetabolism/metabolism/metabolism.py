@@ -496,7 +496,7 @@ class MetabolicSystem(BasicMetabolicComponent):
             return
         BasicMetabolicComponent.__init__(self, name=name)
         self.name = name
-        self._options = misc.OptionsManager.get_instance()
+        self._options = misc.OptionsManager()
         self.compartments = set(compartments)
         self.reactions = set(reactions)
         self.compounds = set(compounds)

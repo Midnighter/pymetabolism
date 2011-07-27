@@ -184,7 +184,8 @@ class MetaSingleton(type):
         return super(MetaSingleton, metaclass).__new__(metaclass, strName, tupBases, dct)
 
     def __call__(cls, *lstArgs, **dictArgs):
-        raise SingletonException, 'Singletons may only be instantiated through getInstance()'
+        cls.getInstance(*lstArgs, **dictArgs)
+#        raise SingletonException, 'Singletons may only be instantiated through getInstance()'
 
 class Singleton(object):
     __metaclass__ = MetaSingleton
@@ -203,21 +204,6 @@ class Singleton(object):
 
         return cls.cInstance
     getInstance = classmethod(getInstance)
-
-    def get_instance(cls, *lstArgs, **dctKwArgs):
-        """
-        Call this to instantiate an instance or retrieve the existing instance.
-        If the singleton requires args to be instantiated, include them the first
-        time you call getInstance.
-        """
-        if cls._isInstantiated():
-            if (lstArgs or dctKwArgs) and not hasattr(cls, 'ignoreSubsequent'):
-                raise SingletonException, 'Singleton already instantiated, but getInstance() called with args.'
-        else:
-            _createSingletonInstance(cls, lstArgs, dctKwArgs)
-
-        return cls.cInstance
-    get_instance = classmethod(get_instance)
 
     def _isInstantiated(cls):
         # Don't use hasattr(cls, 'cInstance'), because that screws things up if there is a singleton that

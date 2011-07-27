@@ -259,7 +259,7 @@ class MetabolicNetwork(nx.DiGraph):
             else:
                 raise TypeError("unrecognised metabolic object")
 
-        options = misc.OptionsManager.get_instance()
+        options = misc.OptionsManager()
         with open(path, "r") as file_handle:
             lines = [line.strip() for line in file_handle]
         for line in lines:
@@ -279,7 +279,7 @@ class MetabolicNetwork(nx.DiGraph):
     def write_edgelist(self, path, distinct=True, delimiter="\t", comments="#"):
         """
         """
-        options = misc.OptionsManager.get_instance()
+        options = misc.OptionsManager()
         lines = list()
         for rxn in self.reactions:
             rxn_name = options.reaction_prefix + rxn.name
@@ -365,7 +365,7 @@ class MetabolicNetwork(nx.DiGraph):
     def draw(self, filename, output_format="pdf", layout_program="fdp",
                 layout_args="", distinct=False):
         import pygraphviz as pgv
-        options = misc.OptionsManager.get_instance()
+        options = misc.OptionsManager()
         net = pgv.AGraph(directed=True, name=filename, strict=True)
         node_attr= dict()
         link_attr= dict()
