@@ -20,4 +20,5 @@ Python Metabolic Modelling
 
 
 from .miscellaneous import OptionsManager
+from .errors import PyMetabolismError
 

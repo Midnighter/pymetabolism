@@ -24,6 +24,7 @@ import copy
 import logging
 
 from . import miscellaneous as misc
+from .errors import PyMetabolismError
 
 
 logger = logging.getLogger(__name__)
@@ -368,6 +369,18 @@ class GurobiFacade(LPModelFacade):
                 name=name)
         self._model.update()
 
+    def _make_binary(self, names):
+        for col in names:
+            var = self._variables[col]
+            var.setAttr("VType", "B")
+        self._model.update()
+
+    def _make_integer(self, names):
+        for col in names:
+            var = self._variables[col]
+            var.setAttr("VType", "I")
+        self._model.update()
+
     def add_column(self, name, coefficients, bounds=tuple()):
         """
         Introduces a new variable.
@@ -635,33 +648,31 @@ class GurobiFacade(LPModelFacade):
     def _status(self):
         status = self._model.getAttr("Status")
         if status == self._gurobipy.GRB.LOADED:
-            logger.warn("optimize before retrieving the objective value")
+            raise PyMetabolismError("optimize before retrieving the objective value")
         elif status == self._gurobipy.GRB.OPTIMAL:
-            return self._model.getAttr("ObjVal")
+            pass
         elif status == self._gurobipy.GRB.INFEASIBLE:
-            logger.warn("model is infeasible")
+            raise PyMetabolismError("model is infeasible")
         elif status == self._gurobipy.GRB.INF_OR_UNBD:
-            logger.warn("model is infeasible or unbounded")
+            raise PyMetabolismError("model is infeasible or unbounded")
         elif status == self._gurobipy.GRB.UNBOUNDED:
-            logger.warn("model is unbounded")
+            raise PyMetabolismError("model is unbounded")
         elif status == self._gurobipy.GRB.CUTOFF:
-            logger.warn("model solution is worse than provided cut-off")
+            raise PyMetabolismError("model solution is worse than provided cut-off")
         elif status == self._gurobipy.GRB.ITERATION_LIMIT:
-            logger.warn("iteration limit exceeded")
+            raise PyMetabolismError("iteration limit exceeded")
         elif status == self._gurobipy.GRB.NODE_LIMIT:
-            logger.warn("node limit exceeded")
+            raise PyMetabolismError("node limit exceeded")
         elif status == self._gurobipy.GRB.TIME_LIMIT:
-            logger.warn("time limit exceeded")
+            raise PyMetabolismError("time limit exceeded")
         elif status == self._gurobipy.GRB.SOLUTION_LIMIT:
-            return self._model.getAttr("ObjVal")
+            raise PyMetabolismError("solution limit reached")
         elif status == self._gurobipy.GRB.INTERRUPTED:
-            logger.warn("optimization process was interrupted")
+            raise PyMetabolismError("optimization process was interrupted")
         elif status == self._gurobipy.GRB.SUBOPTIMAL:
-            logger.warn("solution is suboptimal")
-            return self._model.getAttr("ObjVal")
+            raise PyMetabolismError("solution is suboptimal")
         elif status == self._gurobipy.GRB.NUMERIC:
-            logger.warn("optimization aborted due to numeric difficulties")
-        return status
+            raise PyMetabolismError("optimization aborted due to numeric difficulties")
 
     def get_objective_value(self):
         """
@@ -700,7 +711,6 @@ class GurobiFacade(LPModelFacade):
         else:
             self._model.setAttr("ModelSense", 1)
         self._model.optimize()
-        return self._status()
 
     def export2lp(self, filename):
         filename += ".lp"

@@ -184,7 +184,7 @@ class MetaSingleton(type):
         return super(MetaSingleton, metaclass).__new__(metaclass, strName, tupBases, dct)
 
     def __call__(cls, *lstArgs, **dictArgs):
-        cls.getInstance(*lstArgs, **dictArgs)
+        return cls.getInstance(*lstArgs, **dictArgs)
 #        raise SingletonException, 'Singletons may only be instantiated through getInstance()'
 
 class Singleton(object):

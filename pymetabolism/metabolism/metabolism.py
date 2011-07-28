@@ -389,8 +389,8 @@ class SBMLReaction(BasicReaction):
                 yield str(cmpd)
                 if not (cmpd == compounds[-1]):
                     yield "+"
-
-        rxn = [e for e in util(self.substrates.keys())]
+        rxn = ["%s:" % self.name]
+        rxn.extend([e for e in util(self.substrates.keys())])
         if self.reversible:
             rxn.append("<=>")
         else:
@@ -502,6 +502,7 @@ class MetabolicSystem(BasicMetabolicComponent):
         self.compounds = set(compounds)
         for rxn in self.reactions:
             self._update_compounds_compartments(rxn)
+        self._transpose = None
 
     def __eq__(self, other):
         raise NotImplementedError
@@ -574,18 +575,17 @@ class MetabolicSystem(BasicMetabolicComponent):
         else:
             PyMetabolismError("unrecognised metabolic component type %s", typeof)
 
-    def verify_consistency(self):
+    def _setup_transpose(self):
         """
-        Verify the stoichiometric consistency of the system.
-
-        The method is described in:
-        1. A. Gevorgyan, M. G Poolman, and D. A Fell, "Detection of stoichiometric
-           inconsistencies in biomolecular models,"
-           Bioinformatics 24, no. 19 (2008): 2245.
+        Sets up a linear programming model where the transpose of the
+        stoichiometric matrix is right multiplied a vector of compound masses
+        and the system is expected to conform with mass conservation laws.
         """
-        model = self._options.get_lp_model()
+        if self._transpose:
+            return
+        self._transpose = self._options.get_lp_model()
         # first add all compound masses as variables to the model
-        model.add_columns(((cmpd.name, {}, (0.0, numpy.inf)) for cmpd in\
+        self._transpose.add_columns(((cmpd.name, {}, (1.0, numpy.inf)) for cmpd in\
             self.compounds))
         # constrain mass by stoichiometric coefficients
         for rxn in self.reactions:
@@ -594,19 +594,97 @@ class MetabolicSystem(BasicMetabolicComponent):
                 constraints[cmpd.name] = rxn.stoichiometric_coefficient(cmpd)
             for cmpd in rxn.products:
                 constraints[cmpd.name] = rxn.stoichiometric_coefficient(cmpd)
-            model.add_row(rxn.name, constraints)
+            self._transpose.add_row(rxn.name, constraints)
             if rxn.reversible:
                 for (cmpd, factor) in constraints.iteritems():
                     constraints[cmpd] = -factor
-                model.add_row(rxn.name + self._options.reversible_suffix,
+                self._transpose.add_row(rxn.name + self._options.reversible_suffix,
                         constraints)
-        # objective is to minimize all compound masses
-        model.set_objective(dict(itertools.izip(model.get_column_names(),
-                itertools.repeat(1.0))))
-        model.export2lp("consistency")
-#        model.optimize(maximize=False)
-#        return model.get_solution_vector()
+        # objective is over all compound masses
+        self._transpose.set_objective(dict(itertools.izip(
+                self._transpose.get_column_names(), itertools.repeat(1.0))))
 
+    def verify_consistency(self, masses=False):
+        """
+        Verify the stoichiometric consistency of the system.
+
+        Parameters
+        ----------
+        masses: bool (optional)
+            If the system is consistent the minimal masses of the compounds
+            should be returned.
+
+        Returns
+        -------
+        bool:
+            Consistent metabolic system returns True, otherwise False.
+        dict:
+            Optional dictionary mapping compounds to minimal masses.
+
+        References
+        ----------
+        1. A. Gevorgyan, M. G Poolman, and D. A Fell, "Detection of stoichiometric
+           inconsistencies in biomolecular models,"
+           Bioinformatics 24, no. 19 (2008): 2245.
+        """
+        self._setup_transpose()
+        # minimize compound masses but they must be greater than zero
+        bounds = dict((cmpd, (1.0, numpy.inf)) for cmpd in\
+                self._transpose.get_column_names())
+        self._transpose.modify_column_bounds(bounds)
+        self._transpose.optimize(maximize=False)
+        try:
+            weights = dict(self._transpose.get_solution_vector())
+            result = all(mass > 0.0 for mass in weights.itervalues())
+        except PyMetabolismError as err:
+            logger.warn(str(err))
+            weights = dict()
+            result = False
+        if masses:
+            return (result, weights)
+        else:
+            return result
+
+    def detect_unconserved_metabolites(self):
+        """
+        Find those metabolites that violate the consistency of the metabolic
+        system.
+
+        Returns
+        -------
+        list:
+            Conserved compounds in the inconsistent system.
+        list:
+            Unconserved compounds in the inconsistent system.
+
+        Notes
+        -----
+        Before using this method make sure to verify the consistency of the
+        system as this method will give wrong results for a consistent system.
+
+        References
+        ----------
+        1. A. Gevorgyan, M. G Poolman, and D. A Fell, "Detection of stoichiometric
+           inconsistencies in biomolecular models,"
+           Bioinformatics 24, no. 19 (2008): 2245.
+        """
+        self._setup_transpose()
+        # objective is to maximize all compound masses while they're binary
+        bounds = dict((cmpd, (0.0, 1.0)) for cmpd in\
+                self._transpose.get_column_names())
+        self._transpose.modify_column_bounds(bounds)
+        self._transpose._make_binary(self._transpose.get_column_names())
+        self._transpose.optimize(maximize=True)
+        # sort compounds by positive or zero mass
+        consistent = list()
+        inconsistent = list()
+        for (cmpd, value) in self._transpose.get_solution_vector():
+            if value > 0.0:
+                consistent.append(cmpd)
+            else:
+                inconsistent.append(cmpd)
+            logger.debug("%s: %f", cmpd, value)
+        return (consistent, inconsistent)
 
     def generate_fba_model(self):
         """

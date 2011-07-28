@@ -23,7 +23,7 @@ You could also use the root logger logging.getLogger("").
 >>> logger.addHandler(logging.StreamHandler())
 
 The next thing you need to be aware of is that pymetabolism uses a Singleton
-instance to manage a few global options. There you can use some common suffixes
+instance to manage a few global options. There you can set some common suffixes
 and prefixes used in parsing documents, printing information, and writing to
 files.
 
@@ -35,10 +35,9 @@ in SBML format. That model contained in a file will have to be parsed. In the
 following is a possible scenario of using the pymetabolism package.
 
 >>> import pymetabolism
->>> options = pymetabolism.OptionsManager.get_instance()
+>>> options = pymetabolism.OptionsManager()
 
-For now the get_instance call is necessary due to the mechanics of the Singleton
-class. The OptionsManager comes with a variety of reasonable default values in
+The OptionsManager comes with a variety of reasonable default values in
 place.
 
 >>> print options.parser
