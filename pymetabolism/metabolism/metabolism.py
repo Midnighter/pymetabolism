@@ -345,6 +345,7 @@ class SBMLReaction(BasicReaction):
         if self.__class__._memory.has_key((self.__class__, identifier)):
             return
         BasicReaction.__init__(self, name=identifier, reversible=reversible)
+        self.identifier = identifier
         self.substrates = substrates
         self.products = products
         self.reversible = bool(reversible)
@@ -582,11 +583,12 @@ class MetabolicSystem(BasicMetabolicComponent):
         and the system is expected to conform with mass conservation laws.
         """
         if self._transpose:
+            logger.warn("already there")
             return
         self._transpose = self._options.get_lp_model()
         # first add all compound masses as variables to the model
         self._transpose.add_columns(((cmpd.name, {}, (1.0, numpy.inf)) for cmpd in\
-            self.compounds))
+                self.compounds))
         # constrain mass by stoichiometric coefficients
         for rxn in self.reactions:
             constraints = dict()

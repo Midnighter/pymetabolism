@@ -541,12 +541,11 @@ class GurobiFacade(LPModelFacade):
         ----------
         name: str
             Name of the column variable to be modified.
-        constraints: dict
-            Map from row names to a pair of lower and upper
-            bounds.
+        coefficients: dict
+            Map from row names to new coefficient.
         """
         var = self._variables[name]
-        for (row, factor) in constraints.iteritems():
+        for (row, factor) in coefficients.iteritems():
             self._model.chgCoeff(self._constraints[row], var, factor)
         self._model.update()
 
@@ -558,11 +557,11 @@ class GurobiFacade(LPModelFacade):
         ----------
         name: str
             Name of the row to be modified.
-        constraints: dict or iterable
+        coefficients: dict or iterable
             Map of column name(s) to the new coefficient.
         """
         constraint = self._constraints[name]
-        for (column, factor) in constraints.iteritems():
+        for (column, factor) in coefficients.iteritems():
             self._model.chgCoeff(constraint, self._variables[column], factor)
         self._model.update()
 

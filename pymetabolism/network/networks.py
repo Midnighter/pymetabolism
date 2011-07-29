@@ -406,3 +406,14 @@ class MetabolicNetwork(nx.DiGraph):
         filename = "%s.%s" % (filename, output_format)
         net.draw(filename, prog=layout_program, args=layout_args)
 
+    def to_system(self):
+        system = pymet.MetabolicSystem(name=self.name, compounds=self.compounds)
+        for rxn in self.reactions:
+            subs = dict((pymet.SBMLCompound(cmpd.name),
+                    self[cmpd][rxn]["coefficient"]) for cmpd in self.pred[rxn])
+            prods = dict((pymet.SBMLCompound(cmpd.name),
+                    self[rxn][cmpd]["coefficient"]) for cmpd in self.succ[rxn])
+            system.add(pymet.SBMLReaction(rxn.name, subs, prods,
+                    rxn.reversible))
+        return system
+
