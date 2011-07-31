@@ -163,7 +163,7 @@ def random_p_mn(num_compounds, num_reactions, num_reversible, p, seed=None):
     return network
 
 def random_scale_free_mn(num_compounds, num_reactions, num_reversible,
-        num_rxn_tar, num_cmpd_tar):
+        num_rxn_tar, num_cmpd_tar, seed=None):
     """
     Uses a Barabasi-Alberts-like preferential attachment algorithm. Adopted from
     the networkx implementation.
@@ -180,10 +180,14 @@ def random_scale_free_mn(num_compounds, num_reactions, num_reversible,
         How many compounds a new reaction node links to.
     num_cmpd_tar: int
         How many reactions a new compound node links to.
+    seed: int (optional)
+        A specific seed for the random number generator for reproducible runs.
     """
     # setup
     rand_int = numpy.random.random_integers
     rand_float = numpy.random.random_sample
+    if seed:
+        numpy.random.seed(int(seed))
     num_compounds = int(num_compounds)
     num_reactions = int(num_reactions)
     num_reversible = int(num_reversible)
@@ -228,7 +232,7 @@ def random_scale_free_mn(num_compounds, num_reactions, num_reversible,
     current_rxn = num_cmpd_tar
     current_cmpd = num_rxn_tar
     while (current_cmpd < num_compounds or current_rxn < num_reactions):
-        if current_cmpd < compounds:
+        if current_cmpd < num_compounds:
             source = met.BasicCompound("%s%d" % (options.compound_prefix,
                     current_cmpd))
             network.add_node(source)

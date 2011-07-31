@@ -22,6 +22,7 @@ import logging
 import itertools
 import numpy
 
+from operator import itemgetter
 from ..errors import PyMetabolismError
 from .. import miscellaneous as misc
 
@@ -152,7 +153,7 @@ logger.addHandler(misc.NullHandler())
 #    print result.ff
 #    print result.xf
 
-def make_consistent_stoichiometry(network, coefficients, masses=None):
+def make_consistent_stoichiometry(network, coefficients, mass_vector=None):
     """
     Based on a given network architecture this function attempts to generate a
     consistent stoichiometry that obeys mass conservation laws.
@@ -161,7 +162,7 @@ def make_consistent_stoichiometry(network, coefficients, masses=None):
     ----------
     network: MetabolicNetwork
     coefficients: indexable
-    masses: indexable
+    mass_vector: dict
     """
     rand_int = numpy.random.random_integers
 
@@ -210,14 +211,19 @@ def make_consistent_stoichiometry(network, coefficients, masses=None):
             network[reaction][cmpd]["coefficient"] = coeffs[cmpd.name]
 
     options = misc.OptionsManager()
-    if not masses:
-        # the default masses for compounds 
-        masses = numpy.array([pair[1] for pair in\
-            network.degree_iter(network.compounds)])
-    # generate mass vector for compounds
-    mass_vector = dict(itertools.izip(network.compounds,
-            masses[rand_int(low=0, high=len(masses) - 1,
-                size=len(network.compounds))]))
+    if not mass_vector:
+        # the default masses for compounds:
+        # - compounds sorted by degree have a mass of degree equal to the other
+        #   end of that sorted list (similar to inverse of degree but integers)
+        compound = itemgetter(0)
+        degree = itemgetter(1)
+        masses = [pair for pair in network.degree_iter(network.compounds)]
+        masses.sort(key=degree)
+        end = len(masses) - 1
+        # generate mass vector for compounds
+        mass_vector = dict((compound(pair), degree(masses[end - i]))\
+                for (i, pair) in enumerate(masses))
+
     # prepare a single LP model for all reactions
     model = options.get_lp_model()
     model.add_columns(((cmpd.name, {}, (0.0, max(coefficients))) for cmpd in\
@@ -226,16 +232,15 @@ def make_consistent_stoichiometry(network, coefficients, masses=None):
     model.add_row("reaction", factors)
     # test different objective functions:
     # - only zeros leads to fast solutions (no objective function) that are
-    #   close to the upper boundary
+    #   close to the upper boundary, this can be ameliorated by picking starting
+    #   points for the variables from the given distribution of coefficients
     # - all equal leads to slower solutions that are mostly one with a few
     #   variations to balance the reactions
     # - an objective function with entries of 1 / factor leads to very long
-    #   solution times but much more varied entries
-    # - best approach so far: no objective function, but use a starting point
-    #   by randomly picking coefficients
+    #   solution times but much more varied coefficients
     model.set_objective(dict(itertools.izip(model.get_column_names(),
             itertools.repeat(1.0))))
-#    model._make_integer(model.get_column_names())
+    model._make_integer(model.get_column_names())
     bounds = dict(itertools.izip(model.get_column_names(),
         itertools.repeat((0.0, 0.0))))
     upper = max(coefficients)
@@ -243,6 +248,6 @@ def make_consistent_stoichiometry(network, coefficients, masses=None):
     total = float(len(network.reactions))
     for (i, rxn) in enumerate(network.reactions):
         balance_reaction_by_mass(rxn)
-        logger.info("%.2f %% complete.", float(i + 1) / total * 100.)
+#        logger.info("%.2f %% complete.", float(i + 1) / total * 100.)
 
 
