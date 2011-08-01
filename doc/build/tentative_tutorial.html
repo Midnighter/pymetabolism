@@ -1,0 +1,175 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tentative pymetabolism Tutorial &mdash; pymetabolism 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="pymetabolism 0.1 documentation" href="index.html" />
+    <link rel="prev" title="Welcome to pymetabolism package documentation!" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to pymetabolism package documentation!"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">pymetabolism 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="tentative-pymetabolism-tutorial">
+<h1>Tentative pymetabolism Tutorial<a class="headerlink" href="#tentative-pymetabolism-tutorial" title="Permalink to this headline">¶</a></h1>
+<p>Before starting any work with the pymetabolism package, you should be aware that
+it uses logging facilities. Each submodule of pymetabolism logs certain
+information that are muted by default. You can access that information by
+creating a low-level logger and adding a handler to it. All information in
+submodules will then be propagated to the handler of that base logger. For more
+information see also the logging module documentation.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&quot;pymetabolism&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You could also use the root logger logging.getLogger(&#8220;&#8221;).</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">logger</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>The next thing you need to be aware of is that pymetabolism uses a Singleton
+instance to manage a few global options. There you can set some common suffixes
+and prefixes used in parsing documents, printing information, and writing to
+files.</p>
+<p>With the OptionsManager you also determine what type of parser you want and the
+type of solver you want to use for linear optimization (if any).</p>
+<p>In many cases the starting point of using this package will be a metabolic model
+in SBML format. That model contained in a file will have to be parsed. In the
+following is a possible scenario of using the pymetabolism package.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">pymetabolism</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">options</span> <span class="o">=</span> <span class="n">pymetabolism</span><span class="o">.</span><span class="n">OptionsManager</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The OptionsManager comes with a variety of reasonable default values in
+place.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">options</span><span class="o">.</span><span class="n">parser</span>
+<span class="go">&#39;SBML&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="n">options</span><span class="o">.</span><span class="n">lp_solver</span>
+<span class="go">&#39;gurobi&#39;</span>
+</pre></div>
+</div>
+<p>Let&#8217;s say we have an SBML document containing a metabolic model interest. The
+SBML format is the default so we just get a parser instance.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">parser</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">get_parser</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>When parsing an SBML document a MetabolicSystem instance is returned.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">system</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="s">&quot;path/to/model.xml&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>A MetabolicSystem is basically just a container for all the compartments,
+compounds, and reactions found in the model. When you have a system you can
+decide how to continue from there. A first step could be to check whether the
+system adheres to mass conservation rules.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">system</span><span class="o">.</span><span class="n">verify_consistency</span><span class="p">()</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<p>From here on the system can be converted either into a linear programming model
+suitable for flux balance analysis or into a bipartite network representing the
+metabolism.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">system</span><span class="o">.</span><span class="n">generate_fba_model</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span><span class="o">.</span><span class="n">fba</span><span class="p">()</span>
+<span class="go">2</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span><span class="o">.</span><span class="n">get_objective_value</span><span class="p">()</span>
+<span class="go">0.0</span>
+</pre></div>
+</div>
+<p>Please also consult the documentation for the FBAModel class.</p>
+<p>The bipartite network is used using the networkx package and its DiGraph class.
+So far few methods of the networkx.DiGraph class are overridden. If you do evil
+things the bipartite nature may be destroyed and many networkx algorithms may
+yield strange results due to the existing bipartite nature. So be careful.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">network</span> <span class="o">=</span> <span class="n">system</span><span class="o">.</span><span class="n">generate_network</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The MetabolicNetwork class can be further used to generate unipartite
+projections and to draw it. Look at its documentation for further use cases.</p>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Welcome to pymetabolism package documentation!</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/tentative_tutorial.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to pymetabolism package documentation!"
+             >previous</a> |</li>
+        <li><a href="index.html">pymetabolism 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Jacobs University Bremen.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1pre.
+    </div>
+  </body>
+</html>
