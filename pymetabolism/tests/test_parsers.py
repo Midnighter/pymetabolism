@@ -9,7 +9,6 @@ Parsers Tests
 
 :Authors:
     Moritz Emanuel Beber
-    Alexandra Mirela Grigore
     Nikolaus Sonnenschein
 :Date:
     2011-04-10
@@ -23,24 +22,38 @@ Parsers Tests
 import os
 import nose.tools as nt
 
-from pymetabolism.parsers import SBMLParser
+from ..miscellaneous import OptionsManager
+from .. import parsers
+from ..metabolism import metabolism as pymet
 
 
 class TestSBMLParser(object):
 
-    def setup(self):
-        self.parser = SBMLParser()
-        self.parser.parse(os.path.join(os.path.dirname(__file__), "data", "Ec_core_flux1.xml"))
+    def __init__(self):
+        self.options = OptionsManager()
+        self.options.reversible_suffix = "r"
+        self.parser = parsers.SBMLParser()
+        self.system = self.parser.parse(os.path.join(os.path.dirname(__file__),
+                "data", "Ec_core_flux1.xml"))
 
     def test_compartments(self):
-        for comp in self.parser.compartments:
-            print comp
+        nt.assert_equal(len(self.system.compartments), 3)
+        for comp in self.system.compartments:
+            nt.assert_true(isinstance(comp, pymet.SBMLCompartment))
+            nt.assert_true(comp.name)
+            nt.assert_true(comp.identifier)
 
     def test_compounds(self):
-        for cmpd in self.parser.compounds:
-            print cmpd
+        nt.assert_equal(len(self.system.compounds), 77)
+        for cmpd in self.system.compounds:
+            nt.assert_true(isinstance(cmpd, pymet.SBMLCompartmentCompound))
+            nt.assert_true(cmpd.name)
+            nt.assert_true(cmpd.identifier)
 
     def test_reactions(self):
-        for rxn in self.parser.reactions:
-            print rxn
+        nt.assert_equal(len(self.system.reactions), 77)
+        for rxn in self.system.reactions:
+            nt.assert_true(isinstance(rxn, pymet.SBMLReaction))
+            nt.assert_true(rxn.name)
+            nt.assert_true(rxn.identifier)
 

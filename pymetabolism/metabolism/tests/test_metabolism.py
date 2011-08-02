@@ -21,8 +21,9 @@ Metabolic Components Tests
 
 
 import nose.tools as nt
-import pymetabolism.metabolism as pymet
 import itertools
+
+from .. import metabolism as pymet
 
 
 class TestBasicMetabolicComponent:
@@ -40,11 +41,11 @@ class TestBasicMetabolicComponent:
 
     def test__repr__(self):
         nt.assert_equal(repr(self.comp_1),
-                "<pymetabolism.metabolism.BasicMetabolicComponent, 1>")
+                "<pymetabolism.metabolism.metabolism.BasicMetabolicComponent, 1>")
         nt.assert_equal(repr(self.comp_2),
-                "<pymetabolism.metabolism.BasicMetabolicComponent, 2>")
+                "<pymetabolism.metabolism.metabolism.BasicMetabolicComponent, 2>")
         nt.assert_equal(repr(self.comp_3),
-                "<pymetabolism.metabolism.BasicMetabolicComponent, %d>" %
+                "<pymetabolism.metabolism.metabolism.BasicMetabolicComponent, %d>" %
                 self.comp_3._index)
 
     def test__lt__(self):
@@ -90,13 +91,13 @@ class TestBasicCompound:
 
     def test__repr__(self):
         nt.assert_equal(repr(self.comp_1),
-                "<pymetabolism.metabolism.BasicCompound, %d>" %
+                "<pymetabolism.metabolism.metabolism.BasicCompound, %d>" %
                 self.comp_1._index)
         nt.assert_equal(repr(self.comp_2),
-                "<pymetabolism.metabolism.BasicCompound, %d>" %
+                "<pymetabolism.metabolism.metabolism.BasicCompound, %d>" %
                 self.comp_2._index)
         nt.assert_equal(repr(self.comp_3),
-                "<pymetabolism.metabolism.BasicCompound, %d>" %
+                "<pymetabolism.metabolism.metabolism.BasicCompound, %d>" %
                 self.comp_3._index)
 
     def test__lt__(self):
@@ -142,13 +143,13 @@ class TestBasicReaction:
 
     def test__repr__(self):
         nt.assert_equal(repr(self.comp_1),
-                "<pymetabolism.metabolism.BasicReaction, %d>" %
+                "<pymetabolism.metabolism.metabolism.BasicReaction, %d>" %
                 self.comp_1._index)
         nt.assert_equal(repr(self.comp_2),
-                "<pymetabolism.metabolism.BasicReaction, %d>" %
+                "<pymetabolism.metabolism.metabolism.BasicReaction, %d>" %
                 self.comp_2._index)
         nt.assert_equal(repr(self.comp_3),
-                "<pymetabolism.metabolism.BasicReaction, %d>" %
+                "<pymetabolism.metabolism.metabolism.BasicReaction, %d>" %
                 self.comp_3._index)
 
     def test__lt__(self):
@@ -197,10 +198,10 @@ class TestSBMLCompartment:
 
     def test__repr__(self):
         nt.assert_equal(repr(self.comp_1),
-                "<pymetabolism.metabolism.SBMLCompartment, %d>" %
+                "<pymetabolism.metabolism.metabolism.SBMLCompartment, %d>" %
                 self.comp_1._index)
         nt.assert_equal(repr(self.comp_2),
-                "<pymetabolism.metabolism.SBMLCompartment, %d>" %
+                "<pymetabolism.metabolism.metabolism.SBMLCompartment, %d>" %
                 self.comp_2._index)
 
     def test__lt__(self):
@@ -238,10 +239,10 @@ class TestSBMLCompound:
 
     def test__repr__(self):
         nt.assert_equal(repr(self.comp_1),
-                "<pymetabolism.metabolism.SBMLCompound, %d>" %
+                "<pymetabolism.metabolism.metabolism.SBMLCompound, %d>" %
                 self.comp_1._index)
         nt.assert_equal(repr(self.comp_2),
-                "<pymetabolism.metabolism.SBMLCompound, %d>" %
+                "<pymetabolism.metabolism.metabolism.SBMLCompound, %d>" %
                 self.comp_2._index)
 
     def test__lt__(self):
@@ -285,10 +286,10 @@ class TestSBMLCompartmentCompound:
 
     def test__repr__(self):
         nt.assert_equal(repr(self.comp_1),
-                "<pymetabolism.metabolism.SBMLCompartmentCompound, %d>" %
+                "<pymetabolism.metabolism.metabolism.SBMLCompartmentCompound, %d>" %
                 self.comp_1._index)
         nt.assert_equal(repr(self.comp_2),
-                "<pymetabolism.metabolism.SBMLCompartmentCompound, %d>" %
+                "<pymetabolism.metabolism.metabolism.SBMLCompartmentCompound, %d>" %
                 self.comp_2._index)
 
     def test__lt__(self):
@@ -343,13 +344,13 @@ class TestSBMLReaction:
 
     def test__repr__(self):
         nt.assert_equal(repr(self.comp_1),
-                "<pymetabolism.metabolism.SBMLReaction, %d>" %
+                "<pymetabolism.metabolism.metabolism.SBMLReaction, %d>" %
                 self.comp_1._index)
         nt.assert_equal(repr(self.comp_2),
-                "<pymetabolism.metabolism.SBMLReaction, %d>" %
+                "<pymetabolism.metabolism.metabolism.SBMLReaction, %d>" %
                 self.comp_2._index)
         nt.assert_equal(repr(self.comp_3),
-                "<pymetabolism.metabolism.SBMLReaction, %d>" %
+                "<pymetabolism.metabolism.metabolism.SBMLReaction, %d>" %
                 self.comp_3._index)
 
     def test__lt__(self):

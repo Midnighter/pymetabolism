@@ -23,5 +23,5 @@ Parsers Tests
 import os
 import nose.tools as nt
 
-from .. import lpmodels
+from .. import networks
 

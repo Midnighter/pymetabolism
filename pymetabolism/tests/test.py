@@ -2,6 +2,23 @@
 # -*- coding: utf-8 -*-
 
 
+"""
+=============
+Parsers Tests
+=============
+
+:Authors:
+    Moritz Emanuel Beber
+    Nikolaus Sonnenschein
+:Date:
+    2011-04-10
+:Copyright:
+    Copyright(c) 2011 Jacobs University of Bremen. All rights reserved.
+:File:
+    test.py
+"""
+
+
 import sys
 
 from os import path
@@ -16,7 +33,7 @@ def run(verbosity=1, doctest=False):
       Level of detail in test reports.  Higher numbers provide  more detail.
 
     doctest: bool, optional
-      True to run doctests in code modules
+      Whether or not to execute and test code contained within doc-strings.
     """
     try:
         import nose
