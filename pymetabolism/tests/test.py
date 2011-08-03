@@ -4,7 +4,7 @@
 
 """
 =============
-Parsers Tests
+Run All Tests
 =============
 
 :Authors:

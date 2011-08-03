@@ -83,7 +83,7 @@ class BasicMetabolicComponent(object):
         self.__class__._memory[(self.__class__, self.name)] = self
 
     def __str__(self):
-        return self.name
+        return str(self.name)
 
     def __repr__(self):
         return "<%s.%s, %d>" % (self.__module__, self.__class__.__name__, self._index)
@@ -206,7 +206,7 @@ class SBMLCompartment(BasicMetabolicComponent):
         else:
             self.outside = None
         self.constant = bool(constant)
-        self.suffix = str(suffix)
+        self.suffix = suffix
         self.spatial_dimensions = spatial_dimensions
         self.size = size
         self.units = units
@@ -225,13 +225,15 @@ class SBMLCompound(BasicCompound):
     A molecular compound as defined per SBML standard.
     """
 
-    def __init__(self, identifier, formula=None, in_chl=None, in_chl_key=None,
-            smiles=None, charge=None, mass=None):
+    def __init__(self, identifier, extended_name="", formula=None, in_chl=None,
+            in_chl_key=None, smiles=None, charge=None, mass=None):
         """
         Parameters
         ----------
         identifier: str
-            A string uniquely identifying the compound among its class.
+            A shorthand string uniquely identifying the compound among its class.
+        extended_name: str
+            A string uniquely identifying the compound.
         formula: str (optional)
             Molecular formula as a simple string, e.g., C6H12O6.
         in_chl: str (optional)
@@ -249,6 +251,7 @@ class SBMLCompound(BasicCompound):
             return
         BasicCompound.__init__(self, name=identifier)
         self.identifier = identifier
+        self.extended_name = extended_name
         self.formula = formula
         self.in_chl = in_chl
         self.in_chl_key = in_chl_key
@@ -271,11 +274,11 @@ class SBMLCompound(BasicCompound):
 
 class SBMLCompartmentCompound(BasicCompound):
     """
-    A compartment specific compound as defined per SBML standard.
+    A compartment specific compound.
 
-    TODO:
-        Make direct attribute reference to self.compound work by defining
-        __getattr__ (previous implementations failed on recursion)
+    Often it is desirable to identify compounds on a per compartment basis, for
+    example, in FBA experiments. This class is a simple container for both the
+    compound instance that already exists and the compartment.
     """
 
     def __new__(cls, compound, compartment):
@@ -320,14 +323,14 @@ class SBMLReaction(BasicReaction):
     """
 
     def __init__(self, identifier, substrates, products, reversible=False,
-            synonyms=None, rate_constant=None, lower_bound=None,
-            upper_bound=None, objective_coefficient=None, flux_value=None,
-            reduced_cost=None):
+            extended_name="", synonyms=None, rate_constant=None,
+            lower_bound=None, upper_bound=None, objective_coefficient=None,
+            flux_value=None, reduced_cost=None):
         """
         Parameters
         ----------
         identifier: str
-            A string uniquely identifying the reaction among its class.
+            A shorthand string uniquely identifying the reaction among its class.
         substrates: dict
             A map from the reaction educts to the aboslute value of their
             stoichiometric factors in the reaction.
@@ -337,6 +340,8 @@ class SBMLReaction(BasicReaction):
         reversible: bool (optional)
             Whether this reaction is known to occur in both directions in an
             organism.
+        extended_name: str
+            A string uniquely identifying the reaction.
         synonyms: str (optional)
             Additional identifiers of the reaction.
         rate_constant: float (optional)
@@ -346,6 +351,7 @@ class SBMLReaction(BasicReaction):
             return
         BasicReaction.__init__(self, name=identifier, reversible=reversible)
         self.identifier = identifier
+        self.extended_name = extended_name
         self.substrates = substrates
         self.products = products
         self.reversible = bool(reversible)
@@ -361,7 +367,8 @@ class SBMLReaction(BasicReaction):
         self._consistency_check()
 
     def __iter__(self):
-        return (cmpd for cmpd in self.substrates.keys() + self.products.keys())
+        return (cmpd for cmpd in itertools.chain(self.substrates.iterkeys(),
+            self.products.iterkeys()))
 
     def __contains__(self, compound):
         """
@@ -390,13 +397,13 @@ class SBMLReaction(BasicReaction):
                 yield str(cmpd)
                 if not (cmpd == compounds[-1]):
                     yield "+"
-        rxn = ["%s:" % self.name]
-        rxn.extend([e for e in util(self.substrates.keys())])
+        rxn = ["%s:" % str(self.identifier)]
+        rxn.extend([e for e in util(self.substrates.iterkeys())])
         if self.reversible:
             rxn.append("<=>")
         else:
             rxn.append("->")
-        rxn.extend([e for e in util(self.products.keys())])
+        rxn.extend([e for e in util(self.products.iterkeys())])
         return " ".join(rxn)
 
     def compounds(self):
@@ -432,7 +439,7 @@ class SBMLReaction(BasicReaction):
             return self.products[compound]
         else:
             raise KeyError("'%s' is not participating in reaction '%s'"\
-                % (str(compound), self.identifier))
+                % (str(compound), str(self.identifier)))
 
     def _consistency_check(self):
         """

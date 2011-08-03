@@ -23,11 +23,16 @@ import nose.tools as nt
 import pymetabolism.fba as pyfba
 
 
-#class test_FBAModel(unittest.TestCase):
-#    def setUp(self):
-#        self.lp = util.ImportCplex('test_data/model.lp')
-#        self.glp = fba.FBAModel(self.lp)
-#        
+class TestFBAModel(object):
+
+    def __init__(self):
+        self.options = OptionsManager()
+        self.options.reversible_suffix = "r"
+        self.parser = self.options.get_parser()
+        self.system = self.parser.parse(os.path.join(os.path.dirname(__file__),
+                "data", "Ec_core_flux1.xml"))
+        (self.model, self.known_fluxes) = system.get_lp_model()
+
 #    def test_knock_out_reaction(self):
 #        """Tests if a reaction is correctly constrained to zero flux"""
 #        glp = self.glp
@@ -37,7 +42,7 @@ import pymetabolism.fba as pyfba
 #        glp.undo()
 #        glp.simplex()
 #        self.assertAlmostEqual(glp.getObjVal(), 0.9259122)
-#        
+#
 #    def test_knock_out_metabolite(self):
 #        """Tests if a metabolite is correctly constrained to zero"""
 #        glp = self.glp
@@ -49,7 +54,7 @@ import pymetabolism.fba as pyfba
 #        glp.undo()
 #        glp.simplex()
 #        self.assertAlmostEqual(glp.getObjVal(), 0.9259122)
-#        
+#
 #    def test_modify_reaction_bounds(self):
 #        """Tests if reaction bounds are correctly modified."""
 #        glp = self.glp
@@ -60,7 +65,7 @@ import pymetabolism.fba as pyfba
 #        glp.undo()
 #        glp.simplex()
 #        self.assertAlmostEqual(glp.getObjVal(), 0.9259122)
-#        
+#
 #    def test_modify_metabolite_bounds(self):
 #        """Tests if metabolite bounds are correctly modified."""
 #        glp=self.glp
@@ -71,13 +76,13 @@ import pymetabolism.fba as pyfba
 #        glp.undo()
 #        glp.simplex()
 #        self.assertAlmostEqual(glp.getObjVal(),0.9259122)
-#        
+#
 #    def test_get_substrates_and_products(self):
 #        """Tests if correct substrates and products are returned."""
 #        (substrates, products) = self.glp.get_substrates_and_products('R("R_PGK")')
 #        self.assertEqual(substrates, ('M3pgc', 'Matpc'))
 #        self.assertEqual(products, ('M13dpgc', 'Madpc'))
-#        
+#
 #    def test_free_metabolites(self):
 #        """Tests if metabolite constraints are correctly removed."""
 #        glp=self.glp
@@ -87,7 +92,7 @@ import pymetabolism.fba as pyfba
 #        glp.free_metabolites()
 #        glp.simplex()
 #        self.assertAlmostEqual(glp.getObjVal(),0.9259122)
-#        
+#
 #    def test_add_metabolite_drains(self):
 #        """Tests if a drain for a certain metabolite is correctly added."""
 #        glp=self.glp
@@ -95,27 +100,23 @@ import pymetabolism.fba as pyfba
 #        temp=glp.get_column_names()
 #        if 'M3pgs_Drain' in temp:
 #            return True
-#        
+#
 #    def test_add_transporters(self):
 #        """Tests if a transporter for a certain metabolite is correctly added."""
 #        glp=self.glp
 #        glp.add_trasporters('M3pgc')
 #        temp=glp.get_column_names()
 #        if 'M3pgs_Transp' in temp:
-#            return True       
-#       
+#            return True
+#
 #    def test_get_reaction_objective(self):
 #        """Tests if the correct reaction objective is returned."""
 #        obj = self.glp.get_reaction_objective()
 #        self.assertEqual(obj, 'R("R_BiomassEcoli")')
-#        
+#
 #    def test_set_reaction_objective(self):
 #        """Tests if the reaction objective is correctly set."""
 #        obj = 'R("R_PGK")'
 #        self.glp.set_objective(obj)
 #        self.assertEqual(self.glp.get_reaction_objective(),obj)
-#        
-#if __name__ == '__main__':
-#    # unittest.main()
-#    suite = unittest.TestLoader().loadTestsFromTestCase(test_FBAModel)
-#    unittest.TextTestRunner(verbosity=6).run(suite)
+#

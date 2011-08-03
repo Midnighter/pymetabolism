@@ -100,7 +100,9 @@ class SBMLParser(object):
         (identifier, comp) = self._strip_species_id(compound.getId())
         if not comp:
             comp = metabolism.SBMLCompartment(compound.getCompartment())
-        cmpd = metabolism.SBMLCompound(identifier, charge=compound.getCharge())
+        name = compound.getName()
+        cmpd = metabolism.SBMLCompound(identifier, extended_name=name,
+                charge=compound.getCharge())
         if not comp:
             return cmpd
         else:
@@ -117,6 +119,7 @@ class SBMLParser(object):
     def _parse_reaction(self, reaction, model):
         """Able to parse entries from getListOfReactions"""
         identifier = self._strip_reaction_id(reaction.getId())
+        name = reaction.getName()
         params = dict()
         for param in reaction.getKineticLaw().getListOfParameters():
             params[param.getId().lower()] = param.getValue()
@@ -129,5 +132,6 @@ class SBMLParser(object):
             abs(elem.getStoichiometry())) for elem in
             reaction.getListOfProducts())
         return metabolism.SBMLReaction(identifier, substrates, products,
-                reversible=reaction.getReversible(), **params)
+                reversible=reaction.getReversible(), extended_name=name,
+                **params)
 

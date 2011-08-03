@@ -41,7 +41,6 @@ class TestSBMLParser(object):
         for comp in self.system.compartments:
             nt.assert_true(isinstance(comp, pymet.SBMLCompartment))
             nt.assert_true(comp.name)
-            nt.assert_true(comp.identifier)
 
     def test_compounds(self):
         nt.assert_equal(len(self.system.compounds), 77)
@@ -49,6 +48,7 @@ class TestSBMLParser(object):
             nt.assert_true(isinstance(cmpd, pymet.SBMLCompartmentCompound))
             nt.assert_true(cmpd.name)
             nt.assert_true(cmpd.identifier)
+            nt.assert_true(len(cmpd.extended_name) > 0)
 
     def test_reactions(self):
         nt.assert_equal(len(self.system.reactions), 77)
@@ -56,4 +56,5 @@ class TestSBMLParser(object):
             nt.assert_true(isinstance(rxn, pymet.SBMLReaction))
             nt.assert_true(rxn.name)
             nt.assert_true(rxn.identifier)
+            nt.assert_true(len(rxn.extended_name) > 0)
 

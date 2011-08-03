@@ -20,13 +20,8 @@ PyMetabolism Package
 """
 
 
-import os
-
 from glob import glob
 from distutils.core import setup
-
-
-test_data_dir = os.path.join("pymetabolism", "tests", "data")
 
 
 setup(
@@ -39,7 +34,9 @@ setup(
     packages = ["pymetabolism",
             "pymetabolism.metabolism",
             "pymetabolism.network",
-            "pymetabolism.tests"],
+            "pymetabolism.tests",
+            "pymetabolism.metabolism.tests",
+            "pymetabolism.network.tests",],
     package_data = {"pymetabolism.tests": ["data/*xml", "data/*lp"]},
     )
 
