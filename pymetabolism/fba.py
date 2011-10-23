@@ -486,3 +486,4 @@ def set_random_medium(model, default_bound=(20.0, 20.0),
     upper = random.uniform(*default_bound)
 
     return model.set_medium(medium, upper)
+

@@ -20,9 +20,12 @@ Metabolic Components Tests
 """
 
 
+import os
 import nose.tools as nt
 import itertools
 
+from ...errors import PyMetabolismError
+from ...miscellaneous import OptionsManager
 from .. import metabolism as pymet
 
 
@@ -392,4 +395,78 @@ class TestSBMLReaction:
         nt.assert_false(self.comp_1.reversible)
         nt.assert_true(self.comp_2.reversible)
         nt.assert_equal(self.comp_3.reversible, self.comp_1.reversible)
+
+
+class TestMetabolicSystem(object):
+
+    def __init__(self):
+        self.options = OptionsManager()
+        self.options.reversible_suffix = "r"
+        self.parser = self.options.get_parser()
+        self.system = self.parser.parse(os.path.join(os.path.dirname(__file__),
+                "..", "..", "tests", "data", "Ec_core_flux1.xml"))
+        self.empty = None
+
+    def setup(self):
+        self.empty = pymet.MetabolicSystem()
+
+    def test_add(self):
+        c = pymet.BasicCompound()
+        self.empty.add(c)
+        sc = pymet.SBMLCompound("foo")
+        self.empty.add(sc)
+        sc2 = pymet.SBMLCompound("man")
+        self.empty.add(sc2)
+        co = pymet.SBMLCompartment("choo")
+        self.empty.add(co)
+        r = pymet.BasicReaction()
+        self.empty.add(r)
+        sr = pymet.SBMLReaction("stuff", substrates={sc2: 2}, products={sc: 1})
+        self.empty.add(sr)
+        nt.assert_equals(len(self.empty.compounds), 3)
+        nt.assert_equals(len(self.empty.reactions), 2)
+        nt.assert_equals(len(self.empty.compartments), 1)
+        self.empty.add(sc)
+        nt.assert_equals(len(self.empty.compounds), 3)
+        nt.assert_raises(PyMetabolismError, self.empty.add, 4)
+
+    def test_update(self):
+        c = pymet.BasicCompound()
+        sc = pymet.SBMLCompound("foo")
+        sc2 = pymet.SBMLCompound("man")
+        self.empty.update([c], type(c))
+        self.empty.update([sc, sc2], type(sc))
+        co = pymet.SBMLCompartment("choo")
+        self.empty.update([co], type(co))
+        r = pymet.BasicReaction()
+        sr = pymet.SBMLReaction("stuff", substrates={sc2: 2}, products={sc: 1})
+        self.empty.update([r], type(r))
+        self.empty.update([sr], type(sr))
+        nt.assert_equals(len(self.empty.compounds), 3)
+        nt.assert_equals(len(self.empty.reactions), 2)
+        nt.assert_equals(len(self.empty.compartments), 1)
+        self.empty.update([c], type(c))
+        nt.assert_equals(len(self.empty.compounds), 3)
+        nt.assert_raises(PyMetabolismError, self.empty.update, [4], type(4))
+
+    def test_verify_consistency(self):
+        nt.assert_false(self.system.verify_consistency())
+        r = pymet.SBMLReaction("Biomass_Ecoli_core_N__w_GAM_", {}, {})
+        self.system.reactions.remove(r)
+        nt.assert_true(self.system.verify_consistency())
+        self.system = self.parser.parse(os.path.join(os.path.dirname(__file__),
+                "..", "..", "tests", "data", "Ec_core_flux1.xml"))
+
+    def test_detect_unconserved_metabolites(self):
+        pass
+
+    def test_generate_fba_model(self):
+        pass
+
+    def test_generate_network(self):
+        network = self.system.generate_network(stoichiometric_coefficients=True)
+        nt.assert_equals(network.order(), len(self.system.compounds) +
+                len(self.system.reactions))
+        nt.assert_equals(network.size(), sum(len(rxn) for rxn in\
+            self.system.reactions))
 

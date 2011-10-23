@@ -19,10 +19,12 @@ Model Parsers
 """
 
 
+import os
 import logging
 
 from .metabolism import metabolism
 from . import miscellaneous as misc
+from .errors import PyMetabolismError
 
 
 logger = logging.getLogger(__name__)
@@ -50,6 +52,8 @@ class SBMLParser(object):
         """
         Parse a document in SBML format.
         """
+        if not os.path.exists(path):
+            raise PyMetabolismError("no such file '%s'" % path)
         document = self._sbml.readSBML(path)
         if document.getNumErrors() > 0:
             logger.warn("reading the SBML document '%s' produced some errors",

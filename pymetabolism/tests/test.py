@@ -20,8 +20,8 @@ Run All Tests
 
 
 import sys
-
-from os import path
+import logging
+import os
 
 
 def run(verbosity=1, doctest=False):
@@ -40,14 +40,17 @@ def run(verbosity=1, doctest=False):
     except ImportError:
         raise ImportError(
                 "The nose package is needed to run the pymetabolism tests.")
+    logger = logging.getLogger("pymetabolism")
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(logging.StreamHandler(sys.stdout))
     sys.stderr.write("Running pymetabolism tests:")
-    install_dir = path.join(path.dirname(__file__), path.pardir)
+    install_dir = os.path.join(os.path.dirname(__file__), os.path.pardir)
     argv = [" ", "--verbosity=%d" % verbosity, "-w", install_dir, "-exe"]
     if doctest:
         argv.extend(["--with-doctest", "--doctest-extension=txt"])
     nose.run(argv=argv)
 
 if __name__ == "__main__":
-    sys.path.append(path.abspath("../.."))
+#    sys.path.append(os.path.abspath("../.."))
     run()
 

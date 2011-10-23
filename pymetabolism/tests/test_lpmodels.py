@@ -19,9 +19,11 @@ LP Models Tests
 """
 
 
+import os
 import nose.tools as nt
 
 from .. import lpmodels
+from ..miscellaneous import OptionsManager
 
 
 class TestGurobiFacade(object):
@@ -32,3 +34,9 @@ class TestGurobiFacade(object):
         self.parser = self.options.get_parser()
         self.system = self.parser.parse(os.path.join(os.path.dirname(__file__),
                 "data", "Ec_core_flux1.xml"))
+
+    def test_model(self):
+        model = self.system.generate_fba_model()
+        print model.fba()
+        print model.get_objective_value()
+
