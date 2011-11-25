@@ -18,7 +18,6 @@ Metabolic Network Representations
 """
 
 
-import copy
 import itertools
 import networkx as nx
 
@@ -289,21 +288,21 @@ class MetabolicNetwork(nx.DiGraph):
                             options.reversible_suffix)
                 else:
                     rev_name = rxn_name
-                for cmpd in network.successors_iter(rxn):
+                for cmpd in self.successors_iter(rxn):
                     lines.append("%s%s%s\n" % (rxn_name, delimiter, options.compound_prefix
                             + cmpd.name))
                     lines.append("%s%s%s\n" % (options.compound_prefix + cmpd.name,
                             delimiter, rev_name))
-                for cmpd in network.predecessors_iter(rxn):
+                for cmpd in self.predecessors_iter(rxn):
                     lines.append("%s%s%s\n" % (options.compound_prefix + cmpd.name,
                             delimiter, rxn_name))
                     lines.append("%s%s%s\n" % (rev_name, delimiter, options.compound_prefix
                             + cmpd.name))
             else:
-                for cmpd in network.successors_iter(rxn):
+                for cmpd in self.successors_iter(rxn):
                     lines.append("%s%s%s\n" % (rxn_name, delimiter, options.compound_prefix
                             + cmpd.name))
-                for cmpd in network.predecessors_iter(rxn):
+                for cmpd in self.predecessors_iter(rxn):
                     lines.append("%s%s%s\n" % (options.compound_prefix + cmpd.name,
                             delimiter, rxn_name))
         with open(path, "w") as file_handle:

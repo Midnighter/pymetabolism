@@ -605,12 +605,13 @@ class MetabolicSystem(BasicMetabolicComponent):
         self._transpose = self._options.get_lp_model()
         # first add all compound masses as variables to the model
         self._transpose.add_columns((cmpd, 1.0, numpy.inf)\
-                for cmpd in self.compounds))
+                for cmpd in self.compounds)
         # constrain mass by stoichiometric coefficients
         for rxn in self.reactions:
             constraints = list()
             for cmpd in rxn.substrates:
-                constraints.append((cmpd.name, rxn.stoichiometric_coefficient(cmpd))
+                constraints.append((cmpd.name,
+                        rxn.stoichiometric_coefficient(cmpd)))
 #                constraints[cmpd.name] = rxn.stoichiometric_coefficient(cmpd)
 #            for cmpd in rxn.products:
 #                constraints.append((cmpd, rxn.stoichiometric_coefficient(cmpd))

@@ -406,7 +406,7 @@ class GurobiFacade(LPModelFacade):
                 self._model.chgCoeff(constraint, var, factor)
             else:
                 raise PyMetabolismError("modifying coefficient of a"\
-                    " non-existant column, please add the column first"
+                    " non-existant column, please add the column first")
         self._model.update()
 
     def add_columns(self, columns):
