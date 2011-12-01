@@ -66,6 +66,7 @@ class CompoundCentricMultiNetwork(nx.MultiDiGraph):
         Return a copy with no multiple edges and no attributes.
         """
         copy = CompoundCentricNetwork(name="directed " + self.name)
+        copy.add_nodes_from(self.nodes_iter())
         copy.add_edges_from(self.edges_iter())
         return copy
 
@@ -96,6 +97,8 @@ class ReactionCentricNetwork(nx.DiGraph):
         nx.DiGraph.__init__(self, name=name, *args, **kw_args)
 
     def draw(self, filename, output_format="pdf", layout_program="fdp", layout_args=""):
+        """
+        """
         import pygraphviz as pgv
         net = pgv.AGraph(directed=True, name=filename, strict=False)
         node_attr= dict()
@@ -125,7 +128,8 @@ class ReactionCentricMultiNetwork(nx.MultiDiGraph):
         """
         Return a copy with no multiple edges and no attributes.
         """
-        copy = CompoundCentricNetwork(name="directed " + self.name)
+        copy = CompoundCentricNetwork(name="directed_" + self.name)
+        copy.add_nodes_from(self.nodes_iter())
         copy.add_edges_from(self.edges_iter())
         return copy
 

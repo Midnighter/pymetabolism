@@ -88,38 +88,44 @@ class BasicMetabolicComponent(object):
     def __repr__(self):
         return "<%s.%s, %d>" % (self.__module__, self.__class__.__name__, self._index)
 
-    def __lt__(self, other):
-        raise NotImplementedError
+################################################################################
+# Comparisons are necessary for set operations, list sorting, etc. eventually
+# the comparisons should be meaningful on a chemical level, right now they are
+# only meaningful in distinguishing instances from one another
+################################################################################
 
-    def __le__(self, other):
-        raise NotImplementedError
-
-    def __eq__(self, other):
-        if not isinstance(other, BasicMetabolicComponent):
-            raise TypeError("invalid comparison between %s and %s" %
-                    (repr(self), repr(other)))
-        elif self.__class__ == other.__class__:
-            return self._index == other._index
-        else:
-            return False
-
-    def __ne__(self, other):
-        if not isinstance(other, BasicMetabolicComponent):
-            raise TypeError("invalid comparison between %s and %s" %
-                    (repr(self), repr(other)))
-        elif self.__class__ == other.__class__:
-            return self._index != other._index
-        else:
-            return True
-
-    def __gt__(self, other):
-        raise NotImplementedError
-
-    def __ge__(self, other):
-        raise NotImplementedError
-
-    def __cmp__(self, other):
-        raise NotImplementedError
+#    def __lt__(self, other):
+#        raise NotImplementedError
+#
+#    def __le__(self, other):
+#        raise NotImplementedError
+#
+#    def __eq__(self, other):
+#        if not isinstance(other, BasicMetabolicComponent):
+#            raise TypeError("invalid comparison between %s and %s" %
+#                    (repr(self), repr(other)))
+#        elif self.__class__ == other.__class__:
+#            return self._index == other._index
+#        else:
+#            return False
+#
+#    def __ne__(self, other):
+#        if not isinstance(other, BasicMetabolicComponent):
+#            raise TypeError("invalid comparison between %s and %s" %
+#                    (repr(self), repr(other)))
+#        elif self.__class__ == other.__class__:
+#            return self._index != other._index
+#        else:
+#            return True
+#
+#    def __gt__(self, other):
+#        raise NotImplementedError
+#
+#    def __ge__(self, other):
+#        raise NotImplementedError
+#
+#    def __cmp__(self, other):
+#        raise NotImplementedError
 
 
 class BasicCompound(BasicMetabolicComponent):
