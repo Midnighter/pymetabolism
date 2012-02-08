@@ -334,6 +334,7 @@ class MetabolicNetwork(nx.DiGraph):
             for pred in self.predecessors_iter(rxn):
                 for succ in self.successors_iter(rxn):
                     add_link(pred, succ)
+        network.remove_edges_from(network.selfloop_edges())
         return network
 
     def to_reaction_centric(self):
