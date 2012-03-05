@@ -27,7 +27,7 @@ class PyMetabolismError(StandardError):
     package.
     """
 
-    def __init__(self, msg, num=1, *args, **kw_args):
+    def __init__(self, msg, *args, **kw_args):
         """
         Parameters
         ----------
@@ -51,7 +51,7 @@ class PyMetabolismError(StandardError):
         """
         StandardError.__init__(self, *args, **kw_args)
         self.args = (msg,) + args
-        self.errno = num
+        self.errno = 1
         self.strerror = msg % args
 
     def __str__(self):
