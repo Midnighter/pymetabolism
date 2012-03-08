@@ -51,7 +51,7 @@ class PyMetabolismError(StandardError):
         """
         StandardError.__init__(self, *args, **kw_args)
         self.args = (msg,) + args
-        self.errno = 1
+        self.errno = kw_args.get("errno", 1)
         self.strerror = msg % args
 
     def __str__(self):

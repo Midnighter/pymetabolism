@@ -412,14 +412,25 @@ class SBMLReaction(BasicReaction):
         rxn.extend([e for e in util(self.products.iterkeys())])
         return " ".join(rxn)
 
-    def compounds(self):
+    def compounds(self, coefficients=False):
         """
         Returns
         -------
         iterator:
             An iterator over all compounds partaking in the reaction.
+        coefficients: bool (optional)
+            Specifies whether the returned iterator should contain pairs of
+            compounds with stoichiometric coefficients.
         """
-        return (cmpd for cmpd in self.substrates.keys() + self.products.keys())
+        if coefficients:
+            educts_iter = ((cmpd, -factor) for (cmpd, factor) in
+                    self.substrates.iteritems())
+            products_iter = ((cmpd, factor) for (cmpd, factor) in
+                    self.products.iteritems())
+            return itertools.chain(educts_iter, products_iter)
+        else:
+            itertools.chain(self.substrates.iterkeys(),
+                    self.products.iterkeys())
 
     def stoichiometric_coefficient(self, compound):
         """
