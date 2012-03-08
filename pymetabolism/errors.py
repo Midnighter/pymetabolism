@@ -18,9 +18,6 @@ Exceptions
 """
 
 
-import errno
-
-
 class PyMetabolismError(StandardError):
     """
     An error for all exceptions that occur in the usage of the pymetabolism
@@ -43,16 +40,19 @@ class PyMetabolismError(StandardError):
 
         Examples
         --------
-        >>> err = pymetabolism.Error("It's too %s outside!", "rainy")
+        >>> err = PyMetabolismError("It's too %s outside!", "rainy")
         >>> print(err)
         It's too rainy outside!
         >>> print(err.errno)
         1
         """
-        StandardError.__init__(self, *args, **kw_args)
+        super(PyMetabolismError, self).__init__()
         self.args = (msg,) + args
         self.errno = kw_args.get("errno", 1)
-        self.strerror = msg % args
+        try:
+            self.strerror = msg % kw_args
+        except TypeError:
+            self.strerror = msg % args
 
     def __str__(self):
         """
