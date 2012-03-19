@@ -91,6 +91,12 @@ def _grb_populate(attrs):
         except NameError:
             pass
 
+    # gurobi helper functions
+    attrs["_flux"] = _grb__flux
+    attrs["_status"] = _grb__status
+    attrs["_make_binary"] = _grb__make_binary
+    attrs["_make_integer"] = _grb__make_integer
+
 def _grb_initialise(self, name):
     self._model = self._grb.Model(name)
     self._rxn2var = dict()
