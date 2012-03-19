@@ -164,7 +164,6 @@ def make_consistent_stoichiometry(network, coefficients, mass_vector=None):
     coefficients: indexable
     mass_vector: dict
     """
-    rand_int = numpy.random.random_integers
 
     def balance_reaction_by_mass(reaction):
         """
@@ -210,7 +209,7 @@ def make_consistent_stoichiometry(network, coefficients, mass_vector=None):
         for cmpd in network.succ[reaction]:
             network[reaction][cmpd]["coefficient"] = coeffs[cmpd.name]
 
-    options = misc.OptionsManager()
+    options = misc.OptionsManager.get_instance()
     if not mass_vector:
         # the default masses for compounds:
         # - compounds sorted by degree have a mass of degree equal to the other

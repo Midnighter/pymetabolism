@@ -30,7 +30,7 @@ from ..metabolism import metabolism as pymet
 class TestSBMLParser(object):
 
     def __init__(self):
-        self.options = OptionsManager()
+        self.options = OptionsManager.get_instance()
         self.options.reversible_suffix = "r"
         self.parser = parsers.SBMLParser()
         self.system = self.parser.parse(os.path.join(os.path.dirname(__file__),

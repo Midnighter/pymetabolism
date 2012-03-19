@@ -19,6 +19,7 @@ Flux Balance Analysis Model
     test_fba.py
 """
 
+import pymetabolism
 import nose.tools as nt
 import pymetabolism.fba as pyfba
 
@@ -26,7 +27,7 @@ import pymetabolism.fba as pyfba
 class TestFBAModel(object):
 
     def __init__(self):
-        self.options = OptionsManager()
+        self.options = pymetabolism.OptionsManager.get_instance()
         self.options.reversible_suffix = "r"
         self.parser = self.options.get_parser()
         self.system = self.parser.parse(os.path.join(os.path.dirname(__file__),

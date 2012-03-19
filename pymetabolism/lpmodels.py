@@ -22,8 +22,10 @@ LP Solver Interfaces
 
 import sys
 import os
+import itertools
 import copy
 import logging
+import tempfile
 
 from . import miscellaneous as misc
 from .errors import PyMetabolismError
@@ -31,6 +33,9 @@ from .errors import PyMetabolismError
 
 logger = logging.getLogger(__name__)
 logger.addHandler(misc.NullHandler())
+
+
+options = misc.OptionsManager.get_instance()
 
 
 class MetaLPModelFacade(type):
@@ -45,7 +50,9 @@ class MetaLPModelFacade(type):
     def __new__(mcls, name, bases, dct):
         """
         """
-        return super(MetaLPModelFacade, mcls).__new__(mcls, name, bases, attrs)
+        if options.lp_solver.lower() == "gurobi":
+            _grb_populate(dct)
+        return super(MetaLPModelFacade, mcls).__new__(mcls, name, bases, dct)
 
 
 ################################################################################
@@ -65,477 +72,530 @@ def _grb_populate(attrs):
                     "detailed installation instructions.")
 
     grb = sys.modules[name]
+    # suppress reports to stdout
+    grb.setParam("OutputFlag", 0)
     # deal with Gurobi's annoying log file
     tmp_file = tempfile.mkstemp()[1] # absolute path component
     grb.setParam("LogFile", tmp_file)
     os.remove("gurobi.log")
-    # suppress reports to stdout
-    grb.setParam("OutputFlag", 0)
+    # set the number of processes
 
     # set class attributes
     attrs["_grb"] = grb
-    for key in attrs.iterkeys():
+    for (key, value) in attrs.iteritems():
         if key.startswith("_"):
             continue
         try:
             attrs[key] = eval("_grb_" + key)
+            attrs[key].__doc__ = value.__doc__
         except NameError:
             pass
 
 def _grb_initialise(self, name):
     self._model = self._grb.Model(name)
-    self._system2grb = dict()
-    self._grb2system = dict()
-    self._drains = list()
-    self._sources = list()
+    self._rxn2var = dict()
+    self._var2rxn = dict()
+    self._rev2var = dict()
+    self._var2rev = dict()
+    self._cmpd2cnstrnt = dict()
+    self._cnstrnt2cmpd = dict()
+    self._sources = dict()
+    self._drains = dict()
 
+def _grb___copy__(self):
+    # TODO
+    cpy = FBAModel(self.name)
+    cpy._model = self._model.copy()
+    cpy._system2grb = dict()
+    for col in cpy._model.getVars():
+        cpy._system2grb[col.getAttr("VarName")] = col
+    cpy._system2grb = dict()
+    for row in cpy._model.getConstrs():
+        cpy._system2grb[row.getAttr("ConstrName")] = row
+    return cpy
 
-class GurobiFacade(LPModelFacade):
-    """
-    A unified interface for the Gurobi LP solver.
+def _grb___deepcopy__(self, memo=dict()):
+    # TODO
+    return self.__copy__()
 
-    Gurobi speaks of variables and linear constraints rather than columns and
-    rows. Each variable is represented by a column that is involved with
-    multiple linear constraints.
-    """
+def _grb__grb_copy(self):
+    # TODO
+    return self.__deepcopy__()
 
-    _gurobipy = None
+def _grb__make_binary(self, names):
+    for col in names:
+        var = self._variables[col]
+        var.vType = "B"
+    self._model.update()
 
-    def __init__(self, name=""):
-        """
-        Parameters
-        ----------
-        name: str (optional)
-            Name of the model, largely irrelevant.
-        """
-        if not self.__class__._gurobipy:
-            try:
-                self.__class__._gurobipy = __import__(name="gurobipy")
-            except ImportError:
-                raise ImportError("Gurobi python bindings are required for "\
-                        "this functionality, see http://www.gurobi.com/")
+def _grb__make_integer(self, names):
+    for col in names:
+        var = self._variables[col]
+        var.vType = "I"
+    self._model.update()
 
-        LPModelFacade.__init__(self, name)
-        self._gurobipy.setParam("OutputFlag", 0)
-        self._model = self._gurobipy.Model(name)
-        self._variables = dict()
-        self._constraints = dict()
-
-    def __copy__(self):
-        cpy = GurobiFacade(self.name)
-        cpy._model = self._model.copy()
-        cpy._variables = dict()
-        for col in cpy._model.getVars():
-            cpy._variables[col.getAttr("VarName")] = col
-        cpy._constraints = dict()
-        for row in cpy._model.getConstrs():
-            cpy._constraints[row.getAttr("ConstrName")] = row
-        return cpy
-
-    def __deepcopy__(self, memo=dict()):
-        return self.__copy__()
-
-    def copy(self):
-        return self.__deepcopy__()
-
-    def output(self):
-        for (row, constr) in self._constraints.iteritems():
-            print row, self._model.getRow(constr)
-        print
-
-    def _make_binary(self, names):
-        for col in names:
-            var = self._variables[col]
-            var.setAttr("VType", "B")
+def _grb_add_reaction(self, reaction, coefficients, lb=None, ub=None):
+    if lb is None:
+        lb = options.lower_bound
+    if ub is None:
+        ub = options.upper_bound
+    if hasattr(reaction, "__iter__"):
+    # we really add multiple reactions
+        if not hasattr(lb, "__iter__"):
+            lb_iter = itertools.repeat(lb)
+        else:
+            lb_iter = lb
+        if not hasattr(ub, "__iter__"):
+            ub_iter = itertools.repeat(ub)
+        else:
+            ub_iter = ub
+        for (rxn, lb, ub) in itertools.izip(reaction, lb_iter, ub_iter):
+            if self._rxn2var.has_key(rxn):
+                continue
+            if rxn.reversible:
+                if lb < 0:
+                    var_rev = self._model.addVar(0.0, abs(lb), name=str(rxn) +
+                            options.reversible_suffix)
+                    var = self._model.addVar(0.0, ub, name=str(rxn))
+                else:
+                    var_rev = self._model.addVar(lb, ub, name=str(rxn) +
+                            options.reversible_suffix)
+                    var = self._model.addVar(lb, ub, name=str(rxn))
+                self._rev2var[rxn] = var_rev
+                self._var2rev[var_rev] = rxn
+            else:
+                var = self._model.addVar(lb, ub, name=str(rxn))
+            self._rxn2var[rxn] = var
+            self._var2rxn[var] = rxn
         self._model.update()
-
-    def _make_integer(self, names):
-        for col in names:
-            var = self._variables[col]
-            var.setAttr("VType", "I")
+        for (rxn, coeff_iter) in itertools.izip(reaction, coefficients):
+            # will throw KeyError if something went wrong above
+            var = self._rxn2var[rxn]
+            flag = False
+            for (cmpd, factor) in coeff_iter:
+                cnstrnt = self._cmpd2cnstrnt.get(cmpd)
+                if cnstrnt:
+                    self._model.chgCoeff(cnstrnt, var, factor)
+                else:
+                    flag = True
+                    cnstrnt = self._model.addConstr(
+                            self._grb.LinExpr(factor, var),
+                            self._grb.GRB.EQUAL, 0.0, name=str(cmpd))
+                    self._cmpd2cnstrnt[cmpd] = cnstrnt
+            if flag:
+                self._model.update()
+            # add constraints with inverse factors for reverse reaction
+            if rxn.reversible:
+                var = self._rev2var[rxn]
+                for (cmpd, factor) in coeff_iter:
+                    cnstrnt = self._cmpd2cnstrnt[cmpd]
+                    self._model.chgCoeff(cnstrnt, var, -factor)
+    else:
+        if self._rxn2var.has_key(reaction):
+            return
+        if reaction.reversible:
+            if lb < 0:
+                var_rev = self._model.addVar(0.0, abs(lb), name=str(reaction) +
+                        options.reversible_suffix)
+                var = self._model.addVar(0.0, ub, name=str(reaction))
+            else:
+                var_rev = self._model.addVar(lb, ub, name=str(reaction) +
+                        options.reversible_suffix)
+                var = self._model.addVar(lb, ub, name=str(reaction))
+            self._rev2var[reaction] = var_rev
+            self._var2rev[var_rev] = reaction
+        else:
+            var = self._model.addVar(lb, ub, name=str(reaction))
+        self._rxn2var[reaction] = var
+        self._var2rxn[var] = reaction
         self._model.update()
+        flag = False
+        for (cmpd, factor) in coefficients:
+            cnstrnt = self._system2grb.get(cmpd)
+            if cnstrnt:
+                self._model.chgCoeff(cnstrnt, var, factor)
+            else:
+                flag = True
+                cnstrnt = self._model.addConstr(
+                        self._grb.LinExpr(factor, var),
+                        self._grb.GRB.EQUAL, 0.0, name=str(cmpd))
+                self._system2grb[cmpd] = cnstrnt
+                self._grb2system[cnstrnt] = cmpd
+        if flag:
+            self._model.update()
+        # add constraints with inverse factors for reverse reaction
+        if reaction.reversible:
+            var = self._rev2var[reaction]
+            for (cmpd, factor) in coefficients:
+                cnstrnt = self._cmpd2cnstrnt[cmpd]
+                self._model.chgCoeff(cnstrnt, var, -factor)
 
-    def add_column(self, column, coefficients, bounds=tuple()):
-        """
-        Introduces a new variable.
+def _grb_iter_reactions(self, compound=None, coefficients=False):
+    if not compound:
+        return self._rxn2var.iterkeys()
+    result = list()
+    if coefficients:
+        lin_expr = self._model.getRow(self._cmpd2cnstrnt[compound])
+        for i in range(lin_expr.size()):
+            var = lin_expr.getVar(i)
+            rxn = self._var2rxn[var] if self._var2rxn.has_key(var) else\
+                    self._var2rev[var]
+            factor = lin_expr.getCoeff(i)
+            result.append((rxn, factor))
+    else:
+        for i in range(lin_expr.size()):
+            var = lin_expr.getVar(i)
+            rxn = self._var2rxn[var] if self._var2rxn.has_key(var) else\
+                    self._var2rev[var]
+            result.append(rxn)
+    return result
 
-        Parameters
-        ----------
-        column: str
-            A unique identifier for the column.
-        coefficients: iterable
-            Iterable over pairs of row identifiers and their coefficients.
-        bounds: tuple
-            A pair of lower and upper bound on the column variable.
+def _grb_modify_reaction_bounds(self, reaction, lb=None, ub=None):
+    # we allow for lazy updating of the model here (better not be a bug)
+    if lb == None:
+        lb = options.lower_bound
+    if ub == None:
+        ub = options.upper_bound
+    if hasattr(reaction, "__iter__"):
+        # we really modify multiple reactions
+        if not hasattr(lb, "__iter__"):
+            lb_iter = itertools.repeat(lb)
+        if not hasattr(ub, "__iter__"):
+            ub_iter = itertools.repeat(ub)
+        for (rxn, lb, ub) in itertools.izip(reaction, lb_iter, ub_iter):
+            var = self._rxn2var[rxn]
+            if rxn.reversible:
+                var_rev = self._rev2var[rxn]
+                if lb < 0.0:
+                    var_rev.lb = 0.0
+                    var_rev.ub = abs(lb)
+                    var.lb = 0.0
+                    var.ub = ub
+                else:
+                    var_rev.lb = lb
+                    var_rev.ub = ub
+                    var.lb = lb
+                    var.ub = ub
+            else:
+                var.lb = lb
+                var.ub = ub
+    else:
+        var = self._system2grb[reaction]
+        if reaction.reversible:
+            var_rev = self._rev2var[reaction]
+            if lb < 0.0:
+                var_rev.lb = 0.0
+                var_rev.ub = abs(lb)
+                var.lb = 0.0
+                var.ub = ub
+            else:
+                var_rev.lb = lb
+                var_rev.ub = ub
+                var.lb = lb
+                var.ub = ub
+        else:
+            var.lb = lb
+            var.ub = ub
 
-        Notes
-        -----
-        If the column identifier already exists the bounds are ignored but
-        coefficients are not. Look at modify_column_bounds instead.
-        """
-        var = self._variables.get(column)
+def _grb_iter_reaction_bounds(self, reaction=None):
+    # we rely on reversible reactions being treated in unison
+    if reaction is None:
+        reaction = self._rxn2var.iterkeys()
+        return ((rxn, self._rxn2var[rxn].getAttr("LB"),
+                self._rxn2var[rxn].getAttr("UB")) for rxn in reaction)
+    elif hasattr(reaction, "__iter__"):
+        # we really get multiple reactions
+        return ((self._rxn2var[rxn].getAttr("LB"),
+                self._rxn2var[rxn].getAttr("UB")) for rxn in reaction)
+    else:
+        var = self._rxn2var[reaction]
+        return (var.lb, var.ub)
+
+def _grb_modify_reaction_coefficients(self, reaction, coefficients):
+    # we allow for lazy updating of the model here (better not be a bug)
+    if hasattr(reaction, "__iter__"):
+        for (rxn, coeff_iter) in itertools.izip(reaction, coefficients):
+            var = self._rxn2var[rxn]
+            for (cmpd, factor) in coeff_iter:
+                self._model.chgCoeff(self._cmpd2cnstrnt[cmpd], var, factor)
+            if rxn.reversible:
+                var = self._rev2var[rxn]
+                for (cmpd, factor) in coeff_iter:
+                    self._model.chgCoeff(self._cmpd2cnstrnt[cmpd], var, -factor)
+    else:
+        var = self._rxn2var[reaction]
+        for (cmpd, factor) in coefficients:
+            self._model.chgCoeff(self._cmpd2cnstrnt[cmpd], var, factor)
+        if reaction.reversible:
+            var = self._rev2var[reaction]
+            for (cmpd, factor) in coefficients:
+                self._model.chgCoeff(self._cmpd2cnstrnt[cmpd], var, -factor)
+
+def _grb_delete_reaction(self, reaction):
+    if hasattr(reaction, "__iter__"):
+        for rxn in reaction:
+            var = self._rxn2var.pop(rxn)
+            del self._var2rxn[var]
+            self._model.remove(var)
+            if rxn.reversible:
+                var = self._rev2var.pop(rxn)
+                del self._var2rev[var]
+                self._model.remove(var)
+    else:
+        var = self._rxn2var.pop(reaction)
+        del self._var2rxn[var]
+        self._model.remove(var)
+        if reaction.reversible:
+            var = self._rev2var.pop(reaction)
+            del self._var2rev[var]
+            self._model.remove(var)
+    self._model.update()
+
+#def _grb_add_compound(self, compound, coefficients):
+#    constraint = self._constraints.get(row)
+#    if not constraint:
+#        constraint = self._model.addConstr(0.0, self._gurobipy.GRB.EQUAL,
+#                0.0, name=row)
+#        self._constraints[row] = constraint
+#        self._model.update()
+#    for (column, factor) in coefficients:
+#        var = self._variables.get(column)
+#        if var:
+#            self._model.chgCoeff(constraint, var, factor)
+#        else:
+#            raise PyMetabolismError("modifying coefficient of a"\
+#                " non-existant column, please add the column first")
+#    self._model.update()
+#
+#def _grb_add_rows(self, rows):
+#    for row in rows:
+#        if not row in self._constraints:
+#            self._constraints[row] = self._model.addConstr(0.0,
+#                    self._gurobipy.GRB.EQUAL, 0.0, name=row.name)
+#    self._model.update()
+#
+#def _grb_delete_row(self, rows):
+#    if hasattr(rows, "__iter__"):
+#        for name in rows:
+#            self._model.remove(self._constraints.pop(name))
+#    else:
+#        self._model.remove(self._variables.pop(rows))
+#    self._model.update()
+#
+#def _grb_iter_compounds(self, column=None, coefficients=False):
+#    if column:
+#        grb_column = self._model.getCol(self._variables[column])
+#        if coefficients:
+#            return ((grb_column.getConstr(i).getAttr("ConstrName"),
+#                grb_column.getCoeff(i)) for i in xrange(grb_column.size()))
+#        else:
+#            return (grb_column.getConstr(i).getAttr("ConstrName") for i in
+#                xrange(grb_column.size()))
+#    else:
+#        return self._constraints.iterkeys()
+#
+#def _grb_modify_row_coefficients(self, row, coefficients):
+#    constraint = self._constraints[row]
+#    for (column, factor) in coefficients.iteritems():
+#        self._model.chgCoeff(constraint, self._variables[column], factor)
+#    self._model.update()
+#
+#def _grb_modify_row_bounds(self, rows):
+#    raise NotImplementedError("Gurobi does not support bounds for rows")
+
+def _grb_add_compound_source(self, compound, lb=None, ub=None):
+    if lb is None:
+        lb = options.lower_bound
+    if ub is None:
+        ub = options.upper_bound
+    if hasattr(compound, "__iter__"):
+    # we really add multiple compounds
+        if hasattr(lb, "__iter__"):
+            lb_iter = lb
+        else:
+            lb_iter = itertools.repeat(lb)
+        if hasattr(ub, "__iter__"):
+            ub_iter = ub
+        else:
+            ub_iter = itertools.repeat(ub)
+        for (cmpd, lb, ub) in itertools.izip(compound, lb_iter, ub_iter):
+            if self._sources.has_key[cmpd]:
+                continue
+            self._sources[cmpd] = self._model.addVar(lb, ub, name=str(cmpd) + "_Source")
+        self._model.update()
+        # we allow for lazy updating of the model here (better not be a bug)
+        for cmpd in compound:
+            var = self._sources[cmpd]
+            cnstrnt = self._cmpd2cnstrnt[cmpd]
+            self._model.chgCoeff(cnstrnt, var, 1.0)
+    else:
+        var = self._sources.get(compound)
         if not var:
-            var = self._model.addVar(*bounds, name=column)
-            self._variables[column] = var
+            var = self._model.addVar(lb, ub, name=str(cmpd) + "_Source")
+            self._sources[cmpd] = var
             self._model.update()
-        for (row, factor) in coefficients:
-            constraint = self._constraints.get(row)
-            if constraint:
-                self._model.chgCoeff(constraint, var, factor)
-            else:
-                self._constraints[row] = self._model.addConstr(
-                        self._gurobipy.LinExpr(factor, var),
-                        self._gurobipy.GRB.EQUAL, 0.0, name=row)
+        cnstrnt = self._cmpd2cnstrnt[compound]
+        self._model.chgCoeff(cnstrnt, var, 1.0)
+
+def _grb_add_compound_drain(self, compound, lb=None, ub=None):
+    if lb is None:
+        lb = options.lower_bound
+    if ub is None:
+        ub = options.upper_bound
+    if hasattr(compound, "__iter__"):
+    # we really add multiple compounds
+        if hasattr(lb, "__iter__"):
+            lb_iter = lb
+        else:
+            lb_iter = itertools.repeat(lb)
+        if hasattr(ub, "__iter__"):
+            ub_iter = ub
+        else:
+            ub_iter = itertools.repeat(ub)
+        for (cmpd, lb, ub) in itertools.izip(compound, lb_iter, ub_iter):
+            if self._drains.has_key[cmpd]:
+                continue
+            self._drains[cmpd] = self._model.addVar(lb, ub, name=str(cmpd) +
+                    "_Drain")
         self._model.update()
-
-    def add_row(self, row, coefficients):
-        """
-        Introduces a new constraint.
-
-        Parameters
-        ----------
-        row: str
-            A unique identifier for the row.
-        coefficients: iterable
-            Iterable over pairs of column identifiers and their coefficients.
-        """
-        constraint = self._constraints.get(row)
-        if not constraint:
-            constraint = self._model.addConstr(0.0, self._gurobipy.GRB.EQUAL,
-                    0.0, name=row)
-            self._constraints[row] = constraint
+        # we allow for lazy updating of the model here (better not be a bug)
+        for cmpd in compound:
+            var = self._drains[cmpd]
+            cnstrnt = self._cmpd2cnstrnt[cmpd]
+            self._model.chgCoeff(cnstrnt, var, -1.0)
+    else:
+        var = self._drains.get(compound)
+        if not var:
+            var = self._model.addVar(lb, ub, name=str(cmpd) + "_Drain")
+            self._drains[cmpd] = var
             self._model.update()
-        for (column, factor) in coefficients:
-            var = self._variables.get(column)
-            if var:
-                self._model.chgCoeff(constraint, var, factor)
-            else:
-                raise PyMetabolismError("modifying coefficient of a"\
-                    " non-existant column, please add the column first")
-        self._model.update()
+        cnstrnt = self._cmpd2cnstrnt[compound]
+        self._model.chgCoeff(cnstrnt, var, -1.0)
 
-    def add_columns(self, columns):
-        """
-        Bulk introduction of new variables with their boundaries.
+def _grb_iter_objective_reaction(self, coefficients=False):
+    lin_expr = self._model.getObjective()
+    if coefficients:
+        return ((self._var2rxn[lin_expr.getVar(i)], lin_expr.getCoeff(i))
+                for i in range(lin_expr.size()))
+    else:
+        return (self._var2rxn[lin_expr.getVar(i)] for i in range(lin_expr.size()))
 
-        Parameters
-        ----------
-        columns: iterable
-            Iterable over triples of column identifier, lower, and
-            upper bound.
-        """
-        for (column, lb, ub) in columns:
-            if not column in self._variables:
-                self._variables[column] = self._model.addVar(lb, ub,
-                        name=column)
-        self._model.update()
+def _grb_set_objective(self, reaction):
+    # we allow for lazy updating of the model here (better not be a bug)
+    if hasattr(reaction, "__iter__"):
+        for (rxn, factor) in reaction:
+            self._rxn2var[rxn].setAttr("Obj", factor)
+            if rxn.reversible:
+                self._rev2var[rxn].setAttr("Obj", factor)
+    else:
+        self._rxn2var[reaction].setAttr("Obj", factor)
+        if reaction.reversible:
+            self._rev2var[reaction].setAttr("Obj", factor)
 
-    def add_rows(self, rows):
-        """
-        Bulk introduction of new constraints.
+def _grb__status(self):
+    """
+    Determine the current status of the Gurobi model.
+    """
+    status = self._model.getAttr("Status")
+    if status == self._gurobipy.GRB.LOADED:
+        raise PyMetabolismError("optimize before retrieving the objective value", errorno=status)
+    elif status == self._gurobipy.GRB.OPTIMAL:
+        pass
+    elif status == self._gurobipy.GRB.INFEASIBLE:
+        raise PyMetabolismError("model is infeasible", errorno=status)
+    elif status == self._gurobipy.GRB.INF_OR_UNBD:
+        raise PyMetabolismError("model is infeasible or unbounded", errorno=status)
+    elif status == self._gurobipy.GRB.UNBOUNDED:
+        raise PyMetabolismError("model is unbounded", errorno=status)
+    elif status == self._gurobipy.GRB.CUTOFF:
+        raise PyMetabolismError("model solution is worse than provided cut-off", errorno=status)
+    elif status == self._gurobipy.GRB.ITERATION_LIMIT:
+        raise PyMetabolismError("iteration limit exceeded", errorno=status)
+    elif status == self._gurobipy.GRB.NODE_LIMIT:
+        raise PyMetabolismError("node limit exceeded", errorno=status)
+    elif status == self._gurobipy.GRB.TIME_LIMIT:
+        raise PyMetabolismError("time limit exceeded", errorno=status)
+    elif status == self._gurobipy.GRB.SOLUTION_LIMIT:
+        raise PyMetabolismError("solution limit reached", errorno=status)
+    elif status == self._gurobipy.GRB.INTERRUPTED:
+        raise PyMetabolismError("optimization process was interrupted", errorno=status)
+    elif status == self._gurobipy.GRB.SUBOPTIMAL:
+        raise PyMetabolismError("solution is suboptimal", errorno=status)
+    elif status == self._gurobipy.GRB.NUMERIC:
+        raise PyMetabolismError("optimization aborted due to numeric difficulties", errorno=status)
 
-        Parameters
-        ----------
-        rows: iterable
-            Iterable over row identifiers.
-        """
-        for row in rows:
-            if not row in self._constraints:
-                self._constraints[row] = self._model.addConstr(0.0,
-                        self._gurobipy.GRB.EQUAL, 0.0, name=row.name)
-        self._model.update()
+def _grb_get_objective_value(self):
+    # _status should catch all problems (monitor this)
+    self._status()
+    return self._model.getAttr("ObjVal")
 
-    def delete_columns(self, columns):
-        """
-        Removes column(s) from the model.
+def _grb_fba(self, maximize=True):
+    if maximize:
+        self._model.setAttr("ModelSense", -1)
+    else:
+        self._model.setAttr("ModelSense", 1)
+    self._model.optimize()
 
-        Parameters
-        ----------
-        columns: iterable or str
-            Name or iterable over the column names to be removed.
-        """
-        if hasattr(columns, "__iter__"):
-            for name in columns:
-                self._model.remove(self._variables.pop(name))
+def _grb_parsimonious_fba(self, maximize=True):
+    # implement minimization step and warm start
+    if maximize:
+        self._model.setAttr("ModelSense", -1)
+    else:
+        self._model.setAttr("ModelSense", 1)
+    self._model.optimize()
+
+def _grb__flux(self, reaction, threshold):
+    flux = self._rxn2var[reaction].x
+    if reaction.reversible:
+        flux += self._rev2var[reaction].x
+    return flux if flux > threshold else 0.0
+
+def _grb_iter_flux(self, reaction=None, threshold=None):
+    self._status()
+    if threshold is None:
+        threshold = options.numeric_threshold
+    if reaction is None:
+        reaction = self._rxn2var.iterkeys()
+        return ((rxn, self._flux(rxn, threshold)) for rxn in reaction)
+    elif hasattr(reaction, "__iter__"):
+        return (self._flux(rxn, threshold) for rxn in reaction)
+    else:
+        return self._flux(reaction, threshold)
+
+def _grb_set_medium(self, compound, lb=None, ub=None):
+    # we allow for lazy updating of the model here (better not be a bug)
+    if lb is None:
+        lb = options.lower_bound
+    if ub is None:
+        ub = options.upper_bound
+    # constrain all sources first
+    for source in self._sources.itervalues():
+        source.lb = 0.0
+        source.ub = 0.0
+    if hasattr(compound, "__iter__"):
+    # we really add multiple compounds
+        if hasattr(lb, "__iter__"):
+            lb_iter = lb
         else:
-            self._model.remove(self._variables.pop(columns))
-        self._model.update()
-
-    def delete_row(self, rows):
-        """
-        Removes row(s) from the model.
-
-        Parameters
-        ----------
-        rows: iterable or str
-            Name or iterable over the row name(s) to be removed.
-        """
-        if hasattr(rows, "__iter__"):
-            for name in rows:
-                self._model.remove(self._constraints.pop(name))
+            lb_iter = itertools.repeat(lb)
+        if hasattr(ub, "__iter__"):
+            ub_iter = ub
         else:
-            self._model.remove(self._variables.pop(rows))
-        self._model.update()
-
-    def get_columns(self, row=None, coefficients=False):
-        """
-        Parameters
-        ----------
-        row: str (optional)
-            The name of a single row in the model.
-        coefficients: bool (optional)
-            In combination with row this will return the respective coefficient
-            in each column.
-
-        Returns
-        -------
-        iterator:
-            An iterator over all column names or with the optional parameter
-            row, an iterator over all columns with non-zero coefficients the row
-            participates in.
-        """
-        if row:
-            lin_expr = self._model.getRow(self._constraints[row])
-            if coefficients:
-                return ((lin_expr.getVar(i).getAttr("VarName"),
-                    lin_expr.getCoeff(i)) for i in xrange(lin_expr.size()))
-            else:
-                return (lin_expr.getVar(i).getAttr("VarName") for i in
-                    xrange(lin_expr.size()))
-        else:
-            return self._variables.iterkeys()
-
-    def get_rows(self, column=None, coefficients=False):
-        """
-        Parameters
-        ----------
-        column: str (optional)
-            The name of a single column in the model.
-        coefficients: bool (optional)
-            In combination with column this will return the respective coefficient
-            in each row.
-
-        Returns
-        -------
-        iterator:
-            An iterator over all row names or with the optional parameter
-            column, an iterator over all rows with non-zero coefficients the
-            column participates in.
-        """
-        if column:
-            grb_column = self._model.getCol(self._variables[column])
-            if coefficients:
-                return ((grb_column.getConstr(i).getAttr("ConstrName"),
-                    grb_column.getCoeff(i)) for i in xrange(grb_column.size()))
-            else:
-                return (grb_column.getConstr(i).getAttr("ConstrName") for i in
-                    xrange(grb_column.size()))
-        else:
-            return self._constraints.iterkeys()
-
-    def modify_column_coefficients(self, column, coefficients):
-        """
-        Modify a number of coefficients affecting one column.
-
-        Parameters
-        ----------
-        column: str
-            Name of the column variable to be modified.
-        coefficients: iterable
-            Iterable over pairs of row identifiers and their coefficients.
-        """
-        var = self._variables[column]
-        for (row, factor) in coefficients:
-            self._model.chgCoeff(self._constraints[row], var, factor)
-        self._model.update()
-
-    def modify_row_coefficients(self, row, coefficients):
-        """
-        Modify coefficients affecting a number of columns.
-
-        Parameters
-        ----------
-        row: str
-            Name of the row to be modified.
-        coefficients: iterable
-            Iterable over pairs of column identifiers and their coefficients.
-        """
-        constraint = self._constraints[row]
-        for (column, factor) in coefficients.iteritems():
-            self._model.chgCoeff(constraint, self._variables[column], factor)
-        self._model.update()
-
-    def modify_column_bounds(self, columns):
-        """
-        Modifies the lower and upper bounds of variable(s).
-
-        Parameters
-        ----------
-        columns: iterable
-            Iterable over triples of column identifiers and their lower and
-            upper bounds.
-        """
-        for (name, lb, ub) in columns:
-            var = self._variables[name]
-            var.setAttr("LB", lb)
-            var.setAttr("UB", ub)
-        self._model.update()
-
-    def modify_row_bounds(self, rows):
-        """
-        Modifies the lower and upper bounds of a particular constraint.
-
-        Parameters
-        ----------
-        rows: iterable
-            Iterable over triples of row identifiers and their lower and
-            upper bounds.
-        """
-        raise NotImplementedError("Gurobi does not support bounds for rows")
-
-    def get_column_bounds(self, column):
-        """
-        Parameters
-        ----------
-        column: str
-            Name of the column whose bounds are to be fetched.
-
-        Returns
-        -------
-        tuple:
-            A pair of the lower and upper bound of the specified column.
-        """
-        var = self.variables[name]
-        return (var.getAttr("LB"), var.getAttr("UB"))
-
-    def get_objective(self, coefficients=False):
-        """
-        Parameters
-        ----------
-        coefficients: bool (optional)
-            Causes the returned iterator to run over pairs of column name and
-            absolute weight in the objective function.
-
-        Returns
-        -------
-        iterator:
-            Current column(s) that are used as objectives in LP.
-        """
-        lin_expr = self._model.getObjective()
-        if coefficients:
-            return ((lin_expr.getVar(i).getAttr("VarName"), lin_expr.getCoeff(i))
-                    for i in xrange(lin_expr.size()))
-        else:
-            return (lin_expr.getVar(i).getAttr("VarName") for i in xrange(lin_expr.size()))
-
-    def set_objective(self, columns):
-        """
-        Determine the variables that are to be maximized or minimized, and their
-        relative factors. If one variable needs to be maximized and the other
-        minimized in equal weights they can be made objectives with opposing
-        sign.
-
-        Parameters
-        ----------
-        columns: iterable
-            Iterable over pairs of column names and coefficients.
-        """
-        for (name, factor) in columns:
-            self._variables[name].setAttr("Obj", factor)
-        self._model.update()
-
-    def _status(self):
-        """
-        Determine the current status of the Gurobi model.
-        """
-        status = self._model.getAttr("Status")
-        if status == self._gurobipy.GRB.LOADED:
-            raise PyMetabolismError("optimize before retrieving the objective value")
-        elif status == self._gurobipy.GRB.OPTIMAL:
-            pass
-        elif status == self._gurobipy.GRB.INFEASIBLE:
-            raise PyMetabolismError("model is infeasible")
-        elif status == self._gurobipy.GRB.INF_OR_UNBD:
-            raise PyMetabolismError("model is infeasible or unbounded")
-        elif status == self._gurobipy.GRB.UNBOUNDED:
-            raise PyMetabolismError("model is unbounded")
-        elif status == self._gurobipy.GRB.CUTOFF:
-            raise PyMetabolismError("model solution is worse than provided cut-off")
-        elif status == self._gurobipy.GRB.ITERATION_LIMIT:
-            raise PyMetabolismError("iteration limit exceeded")
-        elif status == self._gurobipy.GRB.NODE_LIMIT:
-            raise PyMetabolismError("node limit exceeded")
-        elif status == self._gurobipy.GRB.TIME_LIMIT:
-            raise PyMetabolismError("time limit exceeded")
-        elif status == self._gurobipy.GRB.SOLUTION_LIMIT:
-            raise PyMetabolismError("solution limit reached")
-        elif status == self._gurobipy.GRB.INTERRUPTED:
-            raise PyMetabolismError("optimization process was interrupted")
-        elif status == self._gurobipy.GRB.SUBOPTIMAL:
-            raise PyMetabolismError("solution is suboptimal")
-        elif status == self._gurobipy.GRB.NUMERIC:
-            raise PyMetabolismError("optimization aborted due to numeric difficulties")
-
-    def get_objective_value(self):
-        """
-        Returns
-        -------
-        float:
-            Current value of the objective if available.
-
-        Warnings
-        --------
-        A number of different kinds of exceptions may be raised and inform about
-        the status of an available solution.
-        """
-        self._status()
-        try:
-            return self._model.getAttr("ObjVal")
-        except AttributeError:
-            pass
-
-    def get_solution_vector(self, columns=None):
-        """
-        Parameters
-        ----------
-        columns: iterable (optional)
-            Iterable over column names.
-
-        Returns
-        -------
-        iterable:
-            Iterator over pairs of column identifier and variable value.
-        """
-        self._status()
-        if columns:
-            if hasattr(rows, "__iter__"):
-                return ((name, self._variables[name].getAttr("X"))\
-                        for name in columns)
-            else:
-                return (columns, self._variables[columns].getAttr("X")) 
-        else:
-            return ((name, var.getAttr("X")) for (name, var) in\
-                    self._variables.iteritems())
+            ub_iter = itertools.repeat(ub)
+        for (cmpd, lb, ub) in itertools.izip(compound, lb_iter, ub_iter):
+            var = self._sources[cmpd]
+            var.lb = lb
+            var.ub = ub
+    else:
+        var = self._sources[compound]
+        var.lb = lb
+        var.ub = ub
 
 
-    def optimize(self, maximize=True):
-        """
-        Parameters
-        ----------
-        maximize: bool (optional)
-            Indicates whether the current objective(s) should be maximized or
-            minimized.
-        """
-        if maximize:
-            self._model.setAttr("ModelSense", -1)
-        else:
-            self._model.setAttr("ModelSense", 1)
-        self._model.optimize()
+def _grb_is_fixed(self, reaction):
+    pass
 
-    def export2lp(self, filename):
-        """
-        This was mostly for debugging.
-        """
-        filename += ".lp"
-        self._model.write(filename)
+def _grb_export2lp(self, filename):
+    filename += ".lp"
+    self._model.write(filename)
 

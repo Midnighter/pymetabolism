@@ -48,20 +48,10 @@ class OptionsManager(Singleton):
                 "_b": "Exchange", "_p": "Periplasm"}
         self.parser = "SBML"
         self.lp_solver = "gurobi"
-
-    def get_lp_model(self, name=""):
-        """
-        Returns
-        -------
-        A new LP model with universal interface but underlying solver chosen
-        according to the lp_solver attribute.
-        """
-        from . import lpmodels
-        if self.lp_solver.lower() == "gurobi":
-            return lpmodels.GurobiFacade(name=name)
-        else:
-            raise NotImplementedError("No other LP solvers are supported at"\
-            " the moment")
+        self.lower_bound = 0.0
+        self.upper_bound = 1000.0
+        self.numeric_threshold = 1E-09
+        self.num_proc = 1
 
     def get_parser(self):
         """
