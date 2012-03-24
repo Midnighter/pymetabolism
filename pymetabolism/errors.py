@@ -18,6 +18,9 @@ Exceptions
 """
 
 
+__all__ = ["PyMetabolismError"]
+
+
 class PyMetabolismError(StandardError):
     """
     An error for all exceptions that occur in the usage of the pymetabolism

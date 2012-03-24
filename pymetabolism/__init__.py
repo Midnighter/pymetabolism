@@ -19,6 +19,11 @@ Python Metabolic Modelling
 """
 
 
-from .miscellaneous import OptionsManager
-from .errors import PyMetabolismError
+from .miscellaneous import *
+from .errors import *
+from .fba import *
+from .network.networks import *
+from .parsers import *
+from .metabolism.metabolism import *
+
 

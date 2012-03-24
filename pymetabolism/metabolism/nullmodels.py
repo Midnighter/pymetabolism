@@ -20,11 +20,11 @@ Metabolic Null Models
 
 import logging
 import itertools
-import numpy
 
 from operator import itemgetter
 from ..errors import PyMetabolismError
 from .. import miscellaneous as misc
+from ..fba import FBAModel
 
 
 logger = logging.getLogger(__name__)
@@ -170,49 +170,48 @@ def make_consistent_stoichiometry(network, coefficients, mass_vector=None):
         Balance a single reaction by adjusting the stoichiometric coefficients in a
         way that leads to mass conservation.
         """
+        model.modify_reaction_bounds(network.compounds, lb=0.0)
+        # abuse free_compound to reset all coefficients
+        model.free_compound("reaction")
+
+        compounds = [cmpd for cmpd in itertools.chain(network.pred[reaction],
+                network.succ[reaction])]
         # modify the coefficients for the current reaction
-        temp_coeff = factors.copy()
-        # change the boundaries so only involved compounds are affected
-        temp_bounds = bounds.copy()
+        temp_coeff = list()
 
         # substrates
         msg = list()
-        index = 1
         for cmpd in network.pred[reaction]:
-            temp_coeff[cmpd.name] = -mass_vector[cmpd]
-            temp_bounds[cmpd.name] = (0.1, upper)
-            msg.append("-%s S%d" % (str(mass_vector[cmpd]), index))
-            index += 1
+            temp_coeff.append((cmpd, -mass_vector[cmpd]))
+            msg.append("- %.2f %s" % (mass_vector[cmpd], str(cmpd)))
         #products
         for cmpd in network.succ[reaction]:
-            temp_coeff[cmpd.name] = mass_vector[cmpd]
-            temp_bounds[cmpd.name] = (0.1, upper)
-            msg.append("+%s S%d" % (str(mass_vector[cmpd]), index))
-            index += 1
+            temp_coeff.append((cmpd, mass_vector[cmpd]))
+            msg.append("+ %.2f %s" % (mass_vector[cmpd], str(cmpd)))
         msg.append("= 0")
         logger.debug("%s:", reaction.name)
         logger.debug("%s", " ".join(msg))
 
-        model.modify_row_coefficients("reaction", temp_coeff)
-        model.modify_column_bounds(temp_bounds)
+        model.set_objective_reaction(compounds, 1.0)
+        model.modify_reaction_bounds(compounds, lb=1.0)
+        model.modify_compound_coefficients("reaction", temp_coeff)
 
-        model.optimize(maximize=False)
+        model.fba(maximize=False)
         try:
-            coeffs = dict(model.get_solution_vector())
+            coeffs = dict(model.iter_flux())
         except PyMetabolismError as err:
             logger.debug(str(err))
             raise PyMetabolismError("Reaction '%s' cannot be balanced with the"\
-                " given mass vector." % reaction.name)
+                " given mass vector.", str(reaction))
 
         for cmpd in network.pred[reaction]:
-            network[cmpd][reaction]["coefficient"] = coeffs[cmpd.name]
+            network[cmpd][reaction]["coefficient"] = coeffs[cmpd]
         for cmpd in network.succ[reaction]:
-            network[reaction][cmpd]["coefficient"] = coeffs[cmpd.name]
+            network[reaction][cmpd]["coefficient"] = coeffs[cmpd]
 
-    options = misc.OptionsManager.get_instance()
     if not mass_vector:
         # the default masses for compounds:
-        # - compounds sorted by degree have a mass of degree equal to the other
+        # * compounds sorted by degree have a mass of degree equal to the other
         #   end of that sorted list (similar to inverse of degree but integers)
         compound = itemgetter(0)
         degree = itemgetter(1)
@@ -224,29 +223,27 @@ def make_consistent_stoichiometry(network, coefficients, mass_vector=None):
                 for (i, pair) in enumerate(masses))
 
     # prepare a single LP model for all reactions
-    model = options.get_lp_model()
-    model.add_columns(((cmpd.name, {}, (0.0, max(coefficients))) for cmpd in\
-            network.compounds))
-    factors = dict(itertools.izip(model.get_column_names(), itertools.repeat(0.0)))
-    model.add_row("reaction", factors)
+    model = FBAModel("mass balance")
+    for cmpd in network.compounds:
+        cmpd.reversible = False
+    model.add_reaction(network.compounds, [("reaction", 0.0)], lb=0.0, ub=max(coefficients))
     # test different objective functions:
-    # - only zeros leads to fast solutions (no objective function) that are
+    # * only zeros leads to fast solutions (no objective function) that are
     #   close to the upper boundary, this can be ameliorated by picking starting
     #   points for the variables from the given distribution of coefficients
-    # - all equal leads to slower solutions that are mostly one with a few
+    # * all equal leads to slower solutions that are mostly one with a few
     #   variations to balance the reactions
-    # - an objective function with entries of 1 / factor leads to very long
+    # * an objective function with entries of 1 / factor leads to very long
     #   solution times but much more varied coefficients
-    model.set_objective(dict(itertools.izip(model.get_column_names(),
-            itertools.repeat(1.0))))
-    model._make_integer(model.get_column_names())
-    bounds = dict(itertools.izip(model.get_column_names(),
-        itertools.repeat((0.0, 0.0))))
-    upper = max(coefficients)
+
+    # integer variables because traditionally biochemical reactions are
+    # multiples of chemical groups, i.e., that's what will be in the
+    # coefficients
+    model._make_integer(network.compounds)
 
     total = float(len(network.reactions))
     for (i, rxn) in enumerate(network.reactions):
         balance_reaction_by_mass(rxn)
-#        logger.info("%.2f %% complete.", float(i + 1) / total * 100.)
+        logger.info("%.2f %% complete.", float(i + 1) / total * 100.)
 
 

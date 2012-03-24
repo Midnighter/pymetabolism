@@ -21,7 +21,9 @@ Flux Balance Analysis Model
 """
 
 
-import random
+__all__ = ["iAF1260_minimal_medium", "FBAModel"]
+
+
 import numpy
 
 from .lpmodels import MetaLPModelFacade
@@ -65,14 +67,81 @@ class FBAModel(object):
     def copy(self):
         raise self._error
 
-    def initialise(self, name=""):
+    def add_compound(self, compound, coefficients):
         """
-        Initialise a new and empty model.
+        Add a new reaction to the model.
+
+        The method can also be used to add multiple reactions at the same time.
+        In that case each argument must be an iterable of equal length and
+        matching positions corresponding to the same reaction.
 
         Parameters
         ----------
-        name: str (optional)
-            Identify the model by a name.
+        compound: `BasicCompound`
+            An instance of `BasicCompound`.
+        coefficients: iterable
+            Pairs of `BasicReaction` instances and their
+            stoichiometric coefficient.
+        """
+        raise self._error
+
+    def iter_compounds(self, reaction=None, coefficients=False):
+        """
+        Returns
+        -------
+        iterator:
+            Iterator over all compounds.
+        """
+        raise self._error
+
+    def modify_compound_coefficients(self, compound, coefficients):
+        """
+        Modify the coefficients of reactions that the compound participates in.
+
+        This method can be used to introduce the compound into an existing
+        reaction that it previously did not participate in.
+
+        Parameters
+        ----------
+        compound: `BasicCompound` or iterable
+            An instance of `BasicCompound`.
+        coefficients: iterable
+            Pairs of `BasicReaction` instances and their stoichiometric
+            coefficient.
+        """
+        raise self._error
+
+    def free_compound(self, compound):
+        """
+        Completely removes any bounds on the compound(s) effectively removing it
+        from the model.
+
+        Parameters
+        ----------
+        compound: iterable or `BasicCompound`
+            A single `BasicCompound` instance or an iterable with multiple ones.
+        """
+        raise self._error
+
+    def knockout_compound(self, compound):
+        """
+        Knocks out the reactions consuming or producing the given compound(s).
+
+        Parameters
+        ----------
+        compound: iterable or `BasicCompound`
+            A single `BasicCompound` instance or an iterable with multiple ones.
+        """
+        raise self._error
+
+    def delete_compound(self, compound):
+        """
+        Completely removes the compound(s) from the model.
+
+        Parameters
+        ----------
+        compound: iterable or `BasicCompound`
+            A single `BasicCompound` instance or an iterable with multiple ones.
         """
         raise self._error
 
@@ -100,92 +169,21 @@ class FBAModel(object):
         """
         raise self._error
 
-    def knockout_reaction(self, reaction):
+    def iter_reactions(self, compound=None, coefficients=False):
         """
-        Constrains the allowed reaction flux to zero mimicking a dysfunctional
-        reaction or reactions.
-
         Parameters
         ----------
-        reaction: iterable or `BasicReaction`
-            A single `BasicReaction` instance or an iterable with multiple ones.
-        """
-        self.modify_reaction_bounds(reaction, lb=0.0, ub=0.0)
+        compound: `BasicCompound` (optional)
+            A single `BasicCompound` instance.
+        coefficients: bool (optional)
+            Return also the stoichiometric coefficients of the given compound in
+            the reactions it participates in.
 
-    def free_reaction(self, reaction):
-        """
-        Completely removes any bounds on the reaction(s).
-
-        Parameters
-        ----------
-        reaction: iterable or `BasicReaction`
-            A single `BasicReaction` instance or an iterable with multiple ones.
-        """
-        self.modify_reaction_bounds(reaction, lb=-numpy.inf, ub=numpy.inf)
-
-    def delete_reaction(self, reaction):
-        """
-        Completely removes the reaction(s) from the model.
-
-        Parameters
-        ----------
-        reaction: iterable or `BasicReaction`
-            A single `BasicReaction` instance or an iterable with multiple ones.
-        """
-        raise self._error
-
-    def knockout_compound(self, compound):
-        """
-        Knocks out the reactions consuming or producing the given compound(s).
-
-        Parameters
-        ----------
-        compound: iterable or `BasicCompound`
-            A single `BasicCompound` instance or an iterable with multiple ones.
-        """
-        raise self._error
-
-    def delete_compound(self, compound):
-        """
-        Completely removes the compound(s) from the model.
-
-        Parameters
-        ----------
-        compound: iterable or `BasicCompound`
-            A single `BasicCompound` instance or an iterable with multiple ones.
-        """
-        raise self._error
-
-    def free_compound(self, compound):
-        """
-        Completely removes any bounds on the compound(s) effectively removing it
-        from the model.
-
-        Parameters
-        ----------
-        compound: iterable or `BasicCompound`
-            A single `BasicCompound` instance or an iterable with multiple ones.
-        """
-        raise self._error
-
-    def modify_reaction_bounds(self, reaction, lb=None, ub=None):
-        """
-        Modifies the allowed flux through the reaction(s).
-
-        The method can also be used to modify multiple reactions at the same time.
-        In that case each argument must be an iterable of equal length and
-        matching positions corresponding to the same reaction.
-
-        Parameters
-        ----------
-        reaction: iterable or `BasicReaction`
-            A single `BasicReaction` instance or an iterable with multiple ones.
-        lb: float (optional)
-            A lower bound on the mass flux through this reaction. A default
-            value can be set in the options.
-        ub: float (optional)
-            An upper bound on the mass flux through this reaction. A default
-            value can be set in the options.
+        Returns
+        -------
+        iterator:
+            Iterator over all reactions (excluding sources and drains) that
+            `compound` is involved in.
         """
         raise self._error
 
@@ -206,14 +204,18 @@ class FBAModel(object):
         """
         raise self._error
 
-    def modify_compound_bounds(self, compound, lb=None, ub=None):
+    def modify_reaction_bounds(self, reaction, lb=None, ub=None):
         """
-        Modifies the bounds on compounds.
+        Modifies the allowed flux through the reaction(s).
+
+        The method can also be used to modify multiple reactions at the same time.
+        In that case each argument must be an iterable of equal length and
+        matching positions corresponding to the same reaction.
 
         Parameters
         ----------
-        compound: iterable or `BasicCompound`
-            A single `BasicCompound` instance or an iterable with multiple ones.
+        reaction: iterable or `BasicReaction`
+            A single `BasicReaction` instance or an iterable with multiple ones.
         lb: float (optional)
             A lower bound on the mass flux through this reaction. A default
             value can be set in the options.
@@ -242,20 +244,48 @@ class FBAModel(object):
         """
         raise self._error
 
-    def add_compound_drain(self, compound, lb=None, ub=None):
+    def is_fixed(self, reaction):
         """
-        Adds a drain for a certain compound or compounds to the model.
+        Tests whether a reaction's lower and upper bound are equal.
 
         Parameters
         ----------
-        compound: iterable or `BasicCompound`
-            A single `BasicCompound` instance or an iterable with multiple ones.
-        lb: float (optional)
-            A lower bound on the mass flux through this reaction. A default
-            value can be set in the options.
-        ub: float (optional)
-            An upper bound on the mass flux through this reaction. A default
-            value can be set in the options.
+        reaction: iterable or `BasicReaction`
+            A single `BasicReaction` instance or an iterable with multiple ones.
+        """
+        raise self._error
+
+    def free_reaction(self, reaction):
+        """
+        Completely removes any bounds on the reaction(s).
+
+        Parameters
+        ----------
+        reaction: iterable or `BasicReaction`
+            A single `BasicReaction` instance or an iterable with multiple ones.
+        """
+        self.modify_reaction_bounds(reaction, lb=-numpy.inf, ub=numpy.inf)
+
+    def knockout_reaction(self, reaction):
+        """
+        Constrains the allowed reaction flux to zero mimicking a dysfunctional
+        reaction or reactions.
+
+        Parameters
+        ----------
+        reaction: iterable or `BasicReaction`
+            A single `BasicReaction` instance or an iterable with multiple ones.
+        """
+        self.modify_reaction_bounds(reaction, lb=0.0, ub=0.0)
+
+    def delete_reaction(self, reaction):
+        """
+        Completely removes the reaction(s) from the model.
+
+        Parameters
+        ----------
+        reaction: iterable or `BasicReaction`
+            A single `BasicReaction` instance or an iterable with multiple ones.
         """
         raise self._error
 
@@ -276,30 +306,29 @@ class FBAModel(object):
         """
         raise self._error
 
-    def iter_reactions(self, compound=None, coefficients=False):
+    def iter_sources(self):
         """
-        Parameters
-        ----------
-        compound: `BasicCompound` (optional)
-            A single `BasicCompound` instance.
-        coefficients: bool (optional)
-            Return also the stoichiometric coefficients of the given compound in
-            the reactions it participates in.
-
         Returns
         -------
         iterator:
-            Iterator over all reactions (excluding sources and drains) that
-            `compound` is involved in.
+            Iterator over all sources.
         """
         raise self._error
 
-    def iter_compounds(self):
+    def add_compound_drain(self, compound, lb=None, ub=None):
         """
-        Returns
-        -------
-        iterator:
-            Iterator over all compounds.
+        Adds a drain for a certain compound or compounds to the model.
+
+        Parameters
+        ----------
+        compound: iterable or `BasicCompound`
+            A single `BasicCompound` instance or an iterable with multiple ones.
+        lb: float (optional)
+            A lower bound on the mass flux through this reaction. A default
+            value can be set in the options.
+        ub: float (optional)
+            An upper bound on the mass flux through this reaction. A default
+            value can be set in the options.
         """
         raise self._error
 
@@ -312,29 +341,18 @@ class FBAModel(object):
         """
         raise self._error
 
-    def iter_sources(self):
+    def set_objective_reaction(self, reaction, factor):
         """
-        Returns
-        -------
-        iterator:
-            Iterator over all sources.
-        """
-        raise self._error
+        Sets a certain reaction as objective (for FBA).
 
-    def iter_substrates_and_products(self, reaction, coefficients=False):
-        """
-        Parameters
-        ----------
+        This replaces previous definitions.
+
+        Parameters:
+        -------
         reaction: iterable or `BasicReaction`
             A single `BasicReaction` instance or an iterable with multiple ones.
-        coefficients: bool (optional)
-
-        Returns
-        -------
-        iterator:
-            Iterator over `BasicCompound` instances or pairs with coefficients.
-            Returns an iterator over iterators of these if `reaction` is
-            iterable.
+        factor: iterable or float
+            Weight of the reaction in the objective function.
         """
         raise self._error
 
@@ -350,62 +368,6 @@ class FBAModel(object):
         -------
         iterator:
             Current reaction(s) that are used as objectives in LP.
-        """
-        raise self._error
-
-    def set_objective_reaction(self, reaction, factor):
-        """
-        Sets a certain reaction as objective (for FBA).
-
-        Parameters:
-        -------
-        reaction: iterable or `BasicReaction`
-            A single `BasicReaction` instance or an iterable with multiple ones.
-        factor: iterable or float
-            Weight of the reaction in the objective function.
-        """
-        raise self._error
-
-    def get_objective_value(self, threshold=None):
-        """
-        Parameters
-        ----------
-        threshold: float (optional)
-            Value below which the objective value is considered to be zero. By
-            default the model precision is used.
-
-        Returns
-        -------
-        float:
-            Flux of the set objective reaction(s).
-        """
-        raise self._error
-
-    def fba(self, maximize=True):
-        """
-        Performs an optimization of the current objective(s) in the model.
-        """
-        raise self._error
-
-    def parsimonious_fba(self):
-        """
-        Performs an optimization of the current objective(s) in the model
-        followed by a minimisation of all other unnecessary fluxes.
-        """
-        raise self._error
-
-    def iter_flux(self, reaction=None, threshold=None):
-        """
-        Parameters
-        ----------
-        threshold: float (optional)
-            Value below which a flux value is considered to be zero. By
-            default the model precision is used.
-
-        Returns
-        -------
-        iterator:
-            Iterator over pairs of `BasicReaction`s and their flux.
         """
         raise self._error
 
@@ -427,14 +389,46 @@ class FBAModel(object):
         """
         raise self._error
 
-    def is_fixed(self, reaction):
+    def fba(self, maximize=True):
         """
-        Tests whether a reaction's lower and upper bound are equal.
+        Performs an optimization of the current objective(s) in the model.
+        """
+        raise self._error
 
+    def parsimonious_fba(self):
+        """
+        Performs an optimization of the current objective(s) in the model
+        followed by a minimisation of all other unnecessary fluxes.
+        """
+        raise self._error
+
+    def get_objective_value(self, threshold=None):
+        """
         Parameters
         ----------
-        reaction: iterable or `BasicReaction`
-            A single `BasicReaction` instance or an iterable with multiple ones.
+        threshold: float (optional)
+            Value below which the objective value is considered to be zero. By
+            default the model precision is used.
+
+        Returns
+        -------
+        float:
+            Flux of the set objective reaction(s).
+        """
+        raise self._error
+
+    def iter_flux(self, reaction=None, threshold=None):
+        """
+        Parameters
+        ----------
+        threshold: float (optional)
+            Value below which a flux value is considered to be zero. By
+            default the model precision is used.
+
+        Returns
+        -------
+        iterator:
+            Iterator over pairs of `BasicReaction`s and their flux.
         """
         raise self._error
 

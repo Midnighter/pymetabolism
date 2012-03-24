@@ -18,6 +18,9 @@ Library Miscellanea
 """
 
 
+__all__ = ["OptionsManager"]
+
+
 import logging
 
 from .singletonmixin import Singleton

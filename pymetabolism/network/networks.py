@@ -18,6 +18,10 @@ Metabolic Network Representations
 """
 
 
+__all__ = ["CompoundCentricNetwork", "CompoundCentricMultiNetwork",
+        "ReactionCentricNetwork", "ReactionCentricMultiNetwork",
+        "MetabolicNetwork"]
+
 import itertools
 import networkx as nx
 
@@ -411,13 +415,13 @@ class MetabolicNetwork(nx.DiGraph):
         net.draw(filename, prog=layout_program, args=layout_args)
 
     def to_system(self):
-        system = pymet.MetabolicSystem(name=self.name, compounds=self.compounds)
+        system = pymet.MetabolicSystem(name=self.name)
         for rxn in self.reactions:
-            subs = dict((pymet.SBMLCompound(cmpd.name),
+            subs = dict((pymet.SBMLCompound(str(cmpd)),
                     self[cmpd][rxn]["coefficient"]) for cmpd in self.pred[rxn])
-            prods = dict((pymet.SBMLCompound(cmpd.name),
+            prods = dict((pymet.SBMLCompound(str(cmpd)),
                     self[rxn][cmpd]["coefficient"]) for cmpd in self.succ[rxn])
-            system.add(pymet.SBMLReaction(rxn.name, subs, prods,
+            system.add(pymet.SBMLReaction(str(rxn), subs, prods,
                     rxn.reversible))
         return system
 

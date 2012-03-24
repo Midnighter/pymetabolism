@@ -51,8 +51,6 @@ def prune_network(network):
         if in_deg == 0:
             if out_deg <= 1:
                 prune.append(rxn)
-#                network.remove_node(rxn)
-#                logger.debug("removed reaction %s", str(rxn))
             else:
                 targets = network.successors(rxn)
                 flips = rand_int(1, len(targets) - 1)
@@ -69,8 +67,6 @@ def prune_network(network):
         elif out_deg == 0:
             if in_deg <= 1:
                 prune.append(rxn)
-#                network.remove_node(rxn)
-#                logger.debug("removed reaction %s", str(rxn))
             else:
                 targets = network.predecessors(rxn)
                 flips = rand_int(1, len(targets) - 1)
@@ -87,10 +83,13 @@ def prune_network(network):
     for rxn in prune:
         network.remove_node(rxn)
         logger.debug("removed reaction %s", str(rxn))
+    prune = list()
     for cmpd in network.compounds:
         if network.degree(cmpd) == 0:
-            network.remove_node(cmpd)
-            logger.debug("removed compound %s", str(cmpd))
+            prune.append(cmpd)
+    for cmpd in prune:
+        network.remove_node(cmpd)
+        logger.debug("removed compound %s", str(cmpd))
     logger.info("%d reactions and %d compounds removed",
             (num_rxns - len(network.reactions)),
             (num_cmpds - len(network.compounds)))

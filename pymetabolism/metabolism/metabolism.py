@@ -19,12 +19,17 @@ Metabolic Components
 """
 
 
+__all__ = ["BasicCompound", "BasicReaction", "SBMLCompound", "SBMLCompartment",
+        "SBMLCompartmentCompound", "SBMLReaction", "MetabolicSystem"]
+
+
 import logging
 import itertools
 import numpy
 
 from ..errors import PyMetabolismError
 from .. import miscellaneous as misc
+from ..fba import FBAModel
 
 
 logger = logging.getLogger(__name__)
@@ -86,7 +91,8 @@ class BasicMetabolicComponent(object):
         return str(self.name)
 
     def __repr__(self):
-        return "<%s.%s, %d>" % (self.__module__, self.__class__.__name__, self._index)
+        return "<%s.%s, %d>" % (self.__module__, self.__class__.__name__,
+                id(self))
 
     @classmethod
     def get_instance(cls, name):
@@ -235,7 +241,7 @@ class SBMLCompartment(BasicMetabolicComponent):
         elif isinstance(item, SBMLCompartmentCompound):
             return item.compartment == self
         else:
-            PyMetabolismError("unrecognised metabolic component '%s'", item)
+            raise PyMetabolismError("unrecognised metabolic component '%s'", item)
 
 
 class SBMLCompound(BasicCompound):
@@ -440,7 +446,7 @@ class SBMLReaction(BasicReaction):
                     self.products.iteritems())
             return itertools.chain(educts_iter, products_iter)
         else:
-            itertools.chain(self.substrates.iterkeys(),
+            return itertools.chain(self.substrates.iterkeys(),
                     self.products.iterkeys())
 
     def stoichiometric_coefficient(self, compound):
@@ -554,18 +560,18 @@ class MetabolicSystem(BasicMetabolicComponent):
         elif isinstance(item, BasicMetabolicComponent):
             return item in self.compartments
         else:
-            PyMetabolismError("unrecognised metabolic component '%s'", item)
+            raise PyMetabolismError("unrecognised metabolic component '%s'", item)
 
     def _update_compounds_compartments(self, reaction):
         """
         Add compounds and compartments contained within a reaction to the
         instance container.
         """
-        if hasattr(reaction, "__iter__"):
-            for cmpd in reaction:
-                self.compounds.add(cmpd)
-                if hasattr(cmpd, "compartment"):
-                    self.compartments.add(cmpd.compartment)
+        # assumes SBMLReaction
+        for cmpd in reaction.compounds():
+            self.compounds.add(cmpd)
+            if hasattr(cmpd, "compartment"):
+                self.compartments.add(cmpd.compartment)
 
     def add(self, entity):
         """
@@ -630,29 +636,17 @@ class MetabolicSystem(BasicMetabolicComponent):
         """
         if self._transpose and not self._modified:
             return
-        self._transpose = self._options.get_lp_model()
+        self._transpose = FBAModel("transpose")
+        # add missing reversible attribute
+        for cmpd in self.compounds:
+            cmpd.reversible = False
         # first add all compound masses as variables to the model
-        self._transpose.add_columns((cmpd, 1.0, numpy.inf)\
-                for cmpd in self.compounds)
+        self._transpose.add_reaction(self.compounds, lb=1.0, ub=numpy.inf)
         # constrain mass by stoichiometric coefficients
         for rxn in self.reactions:
-            constraints = list()
-            for cmpd in rxn.substrates:
-                constraints.append((cmpd.name,
-                        rxn.stoichiometric_coefficient(cmpd)))
-#                constraints[cmpd.name] = rxn.stoichiometric_coefficient(cmpd)
-#            for cmpd in rxn.products:
-#                constraints.append((cmpd, rxn.stoichiometric_coefficient(cmpd))
-#                constraints[cmpd.name] = rxn.stoichiometric_coefficient(cmpd)
-            self._transpose.add_row(rxn, constraints)
-            if rxn.reversible:
-                for (cmpd, factor) in constraints.iteritems():
-                    constraints[cmpd] = -factor
-                self._transpose.add_row(rxn.name + self._options.reversible_suffix,
-                        constraints)
+            self._transpose.add_compound(rxn, rxn.compounds(True))
         # objective is over all compound masses
-        self._transpose.set_objective(dict(itertools.izip(
-                self._transpose.get_column_names(), itertools.repeat(1.0))))
+        self._transpose.set_objective_reaction(self.compounds, 1.0)
 
     def verify_consistency(self, masses=False):
         """
@@ -678,22 +672,19 @@ class MetabolicSystem(BasicMetabolicComponent):
            Bioinformatics 24, no. 19 (2008): 2245.
         """
         self._setup_transpose()
-        # minimize compound masses but they must be greater than zero
-        bounds = dict((cmpd, (1.0, numpy.inf)) for cmpd in\
-                self._transpose.get_column_names())
-        self._transpose.modify_column_bounds(bounds)
-        self._transpose.optimize(maximize=False)
+        self._transpose.fba(maximize=False)
         try:
-            weights = dict(self._transpose.get_solution_vector())
+            weights = dict(self._transpose.iter_flux())
             result = all(mass > 0.0 for mass in weights.itervalues())
-        except PyMetabolismError as err:
-            logger.debug(str(err))
+        except PyMetabolismError:
+            logger.debug(u"pssst:", exc_info=True)
             weights = dict()
             result = False
-        if masses:
-            return (result, weights)
-        else:
-            return result
+        finally:
+            if masses:
+                return (result, weights)
+            else:
+                return result
 
     def detect_unconserved_metabolites(self):
         """
@@ -720,15 +711,12 @@ class MetabolicSystem(BasicMetabolicComponent):
         """
         self._setup_transpose()
         # objective is to maximize all compound masses while they're binary
-        bounds = dict((cmpd, (0.0, 1.0)) for cmpd in\
-                self._transpose.get_column_names())
-        self._transpose.modify_column_bounds(bounds)
-        self._transpose._make_binary(self._transpose.get_column_names())
+        self._transpose._make_binary(self.compounds)
         self._transpose.optimize(maximize=True)
         # sort compounds by positive or zero mass
         consistent = list()
         inconsistent = list()
-        for (cmpd, value) in self._transpose.get_solution_vector():
+        for (cmpd, value) in self._transpose.iter_flux():
             if value > 0.0:
                 consistent.append(cmpd)
             else:
@@ -741,102 +729,28 @@ class MetabolicSystem(BasicMetabolicComponent):
         Generate a model fit for flux balance analysis from the metabolic
         system.
         """
+        known_fluxes = list()
+        objectives = list()
+        factors = list()
+        for rxn in self.reactions:
+            if rxn.lower_bound >= 0:
+                rxn.reversible = False
+            if not rxn.flux_value is None:
+                known_fluxes.append((rxn, rxn.flux_value))
+            if rxn.objective_coefficient:
+                objectives.append(rxn)
+                factors.append(rxn.objective_coefficient)
+
         from ..fba import FBAModel
-        model = FBAModel()
-        model.initialise(name)
-
-#            constraints = dict()
-#            comp = metabolism.SBMLCompartment("Exchange")
-#            for cmpd in reaction.substrates:
-#                if cmpd.compartment == comp:
-#                    continue
-#                constraints[cmpd.name] = abs(reaction.stoichiometric_coefficient(cmpd))
-#            for cmpd in reaction.products:
-#                if cmpd.compartment == comp:
-#                    continue
-#                constraints[cmpd.name] = reaction.stoichiometric_coefficient(cmpd)
-#            if rxn.lower_bound is not None:
-#                lb = rxn.lower_bound
-#            else:
-#                lb = -numpy.inf
-#            if reaction.upper_bound is not None:
-#                ub = reaction.upper_bound
-#            else:
-#                ub = numpy.inf
-#            # exchange reactions are inversed
-#            if lb >= 0.0:
-#                model.add_column(rxn.name + "_Drain", constraints, (lb, ub))
-#            else:
-#                model.add_column(rxn.name + "_Drain", constraints, (0.0, ub))
-#            for (cmpd, factor) in constraints.iteritems():
-#                constraints[cmpd] = -factor
-#            if lb < 0.0:
-#                model.add_column(rxn.name + "_Transp", constraints, (0.0, abs(lb)))
-#            else:
-#                model.add_column(rxn.name + "_Transp", constraints, (0.0, ub))
-#            if reaction.flux_value is not None:
-#                if reaction.flux_value > 0.0:
-#                    known_fluxes[reaction.name + "_Drain"] = reaction.flux_value
-#                elif reaction.flux_value < 0.0:
-#                    known_fluxes[reaction.name + "_Transp"] = abs(reaction.flux_value)
-#                else:
-#                    known_fluxes[reaction.name + "_Transp"] = 0.0
-#                    known_fluxes[reaction.name + "_Drain"] = 0.0
-
-        known_fluxes = dict()
-        objectives = dict()
+        model = FBAModel(name)
 
         model.add_reaction(self.reactions, (list(rxn.compounds(True))\
                 for rxn in self.reactions), (rxn.lower_bound\
                 for rxn in self.reactions), (rxn.upper_bound\
                 for rxn in self.reactions))
 
-#        for rxn in self.reactions:
-#            if rxn.name.startswith("EX"):
-#                parse_exchange(rxn)
-#                continue
-#            constraints = dict()
-#            for cmpd in rxn.substrates:
-#                constraints[cmpd] = rxn.stoichiometric_coefficient(cmpd)
-#            for cmpd in rxn.products:
-#                constraints[cmpd] = rxn.stoichiometric_coefficient(cmpd)
-#            if rxn.lower_bound is not None:
-#                lb = rxn.lower_bound
-#            else:
-#                lb = -numpy.inf
-#            if rxn.upper_bound is not None:
-#                ub = rxn.upper_bound
-#            else:
-#                ub = numpy.inf
-#            if lb >= 0.0:
-#                model.add_column(rxn, constraints, (lb, ub))
-#            else:
-#                model.add_column(rxn, constraints, (0.0, ub))
-#            if rxn.reversible:
-#                for (cmpd, factor) in constraints.iteritems():
-#                    constraints[cmpd] = -factor
-#                if abs(lb) == 0.0:
-#                    logger.warn("LB is 0.0 for reversible reaction %s, setting to UB (=%E)",
-#                            rxn, ub)
-#                    rev_ub = ub
-#                else:
-#                    rev_ub = abs(lb)
-#                model.add_column(rxn + self._options.reversible_suffix,
-#                        constraints, (0.0, rev_ub))
-#            if rxn.flux_value is not None:
-#                if rxn.flux_value > 0.0:
-#                    known_fluxes[rxn.name] = rxn.flux_value
-#                elif rxn.flux_value < 0.0:
-#                    known_fluxes[rxn.name + self._options.reversible_suffix] =\
-#                            abs(rxn.flux_value)
-#                else:
-#                    known_fluxes[rxn.name] = 0.0
-#                    if rxn.reversible:
-#                        known_fluxes[rxn.name + self._options.reversible_suffix] = 0.0
-#            if rxn.objective_coefficient:
-#                objectives[rxn] = rxn.objective_coefficient
-#        model.set_objective(objectives)
-        return (model, known_fluxes)
+        model.set_objective_reaction(objectives, factors)
+        return (model, dict(known_fluxes))
 
     def generate_network(self, disjoint_reversible=False,
             stoichiometric_coefficients=False):
