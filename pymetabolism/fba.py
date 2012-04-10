@@ -24,31 +24,29 @@ Flux Balance Analysis Model
 __all__ = ["iAF1260_minimal_medium", "FBAModel"]
 
 
-import numpy
-
 from .lpmodels import MetaLPModelFacade
 
 
-iAF1260_minimal_medium = ["ca2_b_Transp",
-        "cl_b_Transp",
-        "co2_b_Transp",
-        "cobalt2_b_Transp",
-        "cu2_b_Transp",
-        "fe2_b_Transp",
-        "fe3_b_Transp",
-        "h_b_Transp",
-        "h2o_b_Transp",
-        "k_b_Transp",
-        "mg2_b_Transp",
-        "mn2_b_Transp",
-        "mobd_b_Transp",
-        "na1_b_Transp",
-        "nh4_b_Transp",
-        "pi_b_Transp",
-        "so4_b_Transp",
-        "tungs_b_Transp",
-        "zn2_b_Transp",
-        "cbl1_b_Transp"]
+iAF1260_minimal_medium = ["ca2_b",
+        "cl_b",
+        "co2_b",
+        "cobalt2_b",
+        "cu2_b",
+        "fe2_b",
+        "fe3_b",
+        "h_b",
+        "h2o_b",
+        "k_b",
+        "mg2_b",
+        "mn2_b",
+        "mobd_b",
+        "na1_b",
+        "nh4_b",
+        "pi_b",
+        "so4_b",
+        "tungs_b",
+        "zn2_b",
+        "cbl1_b"]
 
 
 class FBAModel(object):
@@ -264,7 +262,7 @@ class FBAModel(object):
         reaction: iterable or `BasicReaction`
             A single `BasicReaction` instance or an iterable with multiple ones.
         """
-        self.modify_reaction_bounds(reaction, lb=-numpy.inf, ub=numpy.inf)
+        raise self._error
 
     def knockout_reaction(self, reaction):
         """
@@ -421,6 +419,8 @@ class FBAModel(object):
         """
         Parameters
         ----------
+        reaction: iterable or `BasicReaction` (optional)
+            A single `BasicReaction` instance or an iterable with multiple ones.
         threshold: float (optional)
             Value below which a flux value is considered to be zero. By
             default the model precision is used.
@@ -428,7 +428,44 @@ class FBAModel(object):
         Returns
         -------
         iterator:
-            Iterator over pairs of `BasicReaction`s and their flux.
+            Iterator over pairs of `BasicReaction`s and their flux or just the
+            flux value.
+        """
+        raise self._error
+
+    def iter_reduced_cost(self, reaction=None, threshold=None):
+        """
+        Parameters
+        ----------
+        reaction: iterable or `BasicReaction` (optional)
+            A single `BasicReaction` instance or an iterable with multiple ones.
+        threshold: float (optional)
+            Value below which a flux value is considered to be zero. By
+            default the model precision is used.
+
+        Returns
+        -------
+        iterator:
+            Iterator over pairs of `BasicReaction`s and their reduced cost or
+            just the reduced cost.
+        """
+        raise self._error
+
+    def iter_shadow_price(self, compound=None, threshold=None):
+        """
+        Parameters
+        ----------
+        compound: iterable or `BasicCompound`s (optional)
+            Iterable of `BasicCompound`s that should be in the growth medium.
+        threshold: float (optional)
+            Value below which a flux value is considered to be zero. By
+            default the model precision is used.
+
+        Returns
+        -------
+        iterator:
+            Iterator over pairs of `BasicCompound`s and their shadow price or
+            just shadow price.
         """
         raise self._error
 

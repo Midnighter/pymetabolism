@@ -20,13 +20,10 @@ Metabolic Components Tests
 """
 
 
-import os
 import inspect
 import itertools
 import nose.tools as nt
 
-from ...errors import PyMetabolismError
-from ...miscellaneous import OptionsManager
 from .. import metabolism as pymet
 
 

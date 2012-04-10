@@ -744,8 +744,8 @@ class MetabolicSystem(BasicMetabolicComponent):
         from ..fba import FBAModel
         model = FBAModel(name)
 
-        model.add_reaction(self.reactions, (list(rxn.compounds(True))\
-                for rxn in self.reactions), (rxn.lower_bound\
+        model.add_reaction(self.reactions, [list(rxn.compounds(True))\
+                for rxn in self.reactions], (rxn.lower_bound\
                 for rxn in self.reactions), (rxn.upper_bound\
                 for rxn in self.reactions))
 

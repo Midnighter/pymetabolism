@@ -114,6 +114,7 @@ def _grb_populate(attrs):
     attrs["_reset_objective"] = _grb__reset_objective
     attrs["_status"] = _grb__status
     attrs["_flux"] = _grb__flux
+    attrs["_reduced_cost"] = _grb__reduced_cost
 
 def _grb___init__(self, name):
     self._model = self._grb.Model(name)
@@ -312,7 +313,7 @@ def _grb_add_reaction(self, reaction, coefficients=None, lb=None, ub=None):
             ub_iter = ub
         else:
             ub_iter = itertools.repeat(ub)
-        if hasattr(coefficients, "__iter__"):
+        if not hasattr(coefficients, "__iter__"):
             coefficients = itertools.repeat(coefficients)
         changes = [self._add_reaction(rxn, lb, ub) for (rxn, lb, ub)\
                 in itertools.izip(reaction, lb_iter, ub_iter)]
@@ -450,6 +451,10 @@ def _grb_is_fixed(self, reaction=None):
         return all(self._fixed(rxn) for rxn in reaction)
     else:
         return self._bounds(reaction)
+
+def _grb_free_reaction(self, reaction):
+    self.modify_reaction_bounds(reaction, lb=-self._grb.GRB.INFINITY,
+            ub=self._grb.GRB.INFINITY)
 
 def _grb__del_reaction(self, reaction):
     var = self._rxn2var.pop(reaction)
@@ -690,12 +695,43 @@ def _grb_iter_flux(self, reaction=None, threshold=None):
     if threshold is None:
         threshold = options.numeric_threshold
     if reaction is None:
-        reaction = self._rxn2var.iterkeys()
-        return ((rxn, self._flux(rxn, threshold)) for rxn in reaction)
+        return ((rxn, self._flux(rxn, threshold)) for rxn in\
+                self._rxn2var.iterkeys())
     elif hasattr(reaction, "__iter__"):
         return (self._flux(rxn, threshold) for rxn in reaction)
     else:
         return self._flux(reaction, threshold)
+
+def _grb__reduced_cost(self, reaction, threshold):
+    cost = self._rxn2var[reaction].rc
+    if reaction.reversible:
+        cost -= self._rev2var[reaction].rc
+    return cost if abs(cost) > threshold else 0.0
+
+def _grb_iter_reduced_cost(self, reaction=None, threshold=None):
+    # _status should catch all problems (monitor this)
+    self._status()
+    if threshold is None:
+        threshold = options.numeric_threshold
+    if reaction is None:
+        return ((rxn, self._reduced_cost(rxn, threshold)) for rxn in\
+                self._rxn2var.iterkeys())
+    elif hasattr(reaction, "__iter__"):
+        return (self._reduced_cost(rxn, threshold) for rxn in reaction)
+    else:
+        return self._reduced_cost(reaction, threshold)
+
+def _grb_iter_shadow_price(self, compound=None):
+    # _status should catch all problems (monitor this)
+    self._status()
+    if compound is None:
+        compound = self._rxn2var.iterkeys()
+        return ((cmpd, cnstrnt.pi) for (cmpd, cnstrnt) in\
+                self._cmpd2cnstrnt.iteritems())
+    elif hasattr(compound, "__iter__"):
+        return (self._cmpd2cnstrnt[cmpd].pi for cmpd in compound)
+    else:
+        return self._cmpd2cnstrnt[cmpd].pi
 
 def _grb_export2lp(self, filename):
     filename += ".lp"

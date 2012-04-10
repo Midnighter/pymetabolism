@@ -19,22 +19,25 @@ Model Parsers
 """
 
 
-__all__ = ["SBMLParser"]
+__all__ = ["parse"]
 
 
 import os
+import codecs
 import logging
 
+from contextlib import contextmanager
 from .metabolism import metabolism
 from . import miscellaneous as misc
 from .errors import PyMetabolismError
+from .singletonmixin import Singleton
 
 
 logger = logging.getLogger(__name__)
 logger.addHandler(misc.NullHandler())
 
 
-class SBMLParser(object):
+class SBMLParser(Singleton):
     """
     A class implementing methods for parsing a SBML model
     """
@@ -51,25 +54,25 @@ class SBMLParser(object):
         object.__init__(self)
         self._options = misc.OptionsManager.get_instance()
 
-    def parse(self, path):
+    def parse_string(self, xml):
         """
         Parse a document in SBML format.
         """
-        if not os.path.exists(path):
-            raise PyMetabolismError("no such file '%s'" % path)
-        document = self._sbml.readSBML(path)
+        document = self._sbml.readSBMLFromString(xml)
         if document.getNumErrors() > 0:
-            logger.warn("reading the SBML document '%s' produced some errors",
-                    path)
+            logger.warn("reading the SBML document produced some errors")
         model = document.getModel()
         # parse compartments
         compartments = [self._parse_compartment(comp) for comp in
                 model.getListOfCompartments()]
+        logger.debug("approx. %d compartments", len(compartments))
         # parse compounds
         compounds = [self._parse_species(cmpd) for cmpd in
                 model.getListOfSpecies()]
+        logger.debug("%d compounds", len(compounds))
         reactions = [self._parse_reaction(rxn, model) for rxn in
                 model.getListOfReactions()]
+        logger.debug("%d reactions", len(reactions))
         return metabolism.MetabolicSystem(compartments=compartments,
                 reactions=reactions, compounds=compounds)
 
@@ -141,4 +144,81 @@ class SBMLParser(object):
         return metabolism.SBMLReaction(identifier, substrates, products,
                 reversible=reaction.getReversible(), extended_name=name,
                 **params)
+
+
+def _open_tar(path, **kw_args):
+    import tarfile
+    kw_args["mode"] = kw_args["mode"].strip("b")
+    if isinstance(path, basestring):
+        return tarfile.TarFile(name=path, mode=kw_args["mode"],
+                encoding=kw_args["encoding"])
+    else:
+        return tarfile.TarFile(fileobj=path, mode=kw_args["mode"],
+                encoding=kw_args["encoding"])
+
+def _open_gz(path, **kw_args):
+    import gzip
+    if isinstance(path, basestring):
+        return gzip.GzipFile(filename=path, mode=kw_args["mode"])
+    else:
+        return gzip.GzipFile(fileobj=path, mode=kw_args["mode"])
+
+def _open_bz2(path, **kw_args):
+    import bz2
+    return bz2.BZ2File(path)
+
+def _open_zip(path, **kw_args):
+    import zipfile
+    kw_args["mode"] = kw_args["mode"].strip("b")
+    return zipfile.ZipFile(path, mode=kw_args["mode"])
+
+def _open_file(path, **kw_args):
+    if isinstance(path, basestring):
+        return codecs.open(path, mode=kw_args["mode"],
+                encoding=kw_args["encoding"])
+    else:
+        reader = codecs.getreader(kw_args["encoding"])
+        return reader(path)
+
+archives = {"gz": _open_gz,
+        "gzip": _open_gz,
+        "bz2": _open_bz2
+#        "zip": _open_zip,
+#        "tar": _open_tar
+        }
+
+
+@contextmanager
+def open_file(filename, **kw_args):
+    path = filename
+    filename = os.path.basename(filename)
+    extns = filename.split(".")
+    del extns[0]
+    extns.reverse()
+    for ext in extns:
+        ext = ext.lower()
+        func = archives.get(ext, _open_file)
+        path = func(path, **kw_args)
+    yield (path, ext)
+    if not path.closed:
+        path.close()
+
+
+parsers = {"xml": SBMLParser,
+        "sbml": SBMLParser
+        }
+
+
+def parse(filename, frmt=False, mode="rb", encoding="utf-8", **kw_args):
+    kw_args["mode"] = mode
+    kw_args["encoding"] = encoding
+    with  open_file(filename, **kw_args) as (file_h, ext):
+        if frmt:
+            ext = frmt.lower()
+        if ext in parsers:
+            parser = parsers[ext].get_instance()
+        else:
+            raise PyMetabolismError("unknown metabolic system format '{}'", ext)
+        system = parser.parse_string(str(file_h.read(-1)))
+    return system
 

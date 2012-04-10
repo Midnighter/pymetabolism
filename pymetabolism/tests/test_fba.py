@@ -19,10 +19,28 @@ Flux Balance Analysis Model
     test_fba.py
 """
 
+
+import os
 import pymetabolism
 import nose.tools as nt
-import pymetabolism.fba as pyfba
 
+from glob import glob
+
+
+def setup(module):
+    files = glob(os.path.join(os.path.dirname(__file__), "data", "*.xml"))
+    module.systems = [pymetabolism.parse(filename) for filename in files]
+
+def teardown(module):
+    del module.systems
+
+def test_fba():
+    options = pymetabolism.OptionsManager.get_instance()
+    for solver in ["gurobi"]:
+        options.solver = solver
+        yield TestFBAModel()
+
+# need module level setup for OptionsManager, different models
 
 class TestFBAModel(object):
 
@@ -30,9 +48,8 @@ class TestFBAModel(object):
         self.options = pymetabolism.OptionsManager.get_instance()
         self.options.reversible_suffix = "r"
         self.parser = self.options.get_parser()
-        self.system = self.parser.parse(os.path.join(os.path.dirname(__file__),
-                "data", "Ec_core_flux1.xml"))
-        (self.model, self.known_fluxes) = system.get_lp_model()
+        self.system = self.parser.parse()
+        (self.model, self.known_fluxes) = self.system.get_lp_model()
 
 #    def test_knock_out_reaction(self):
 #        """Tests if a reaction is correctly constrained to zero flux"""
