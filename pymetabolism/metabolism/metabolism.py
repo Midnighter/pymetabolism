@@ -724,7 +724,7 @@ class MetabolicSystem(BasicMetabolicComponent):
             logger.debug("%s: %f", cmpd, value)
         return (consistent, inconsistent)
 
-    def generate_fba_model(self, name=""):
+    def generate_fba_model(self, name="", fluxes=False):
         """
         Generate a model fit for flux balance analysis from the metabolic
         system.
@@ -750,7 +750,10 @@ class MetabolicSystem(BasicMetabolicComponent):
                 for rxn in self.reactions))
 
         model.set_objective_reaction(objectives, factors)
-        return (model, dict(known_fluxes))
+        if fluxes:
+            return (model, dict(known_fluxes))
+        else:
+            return model
 
     def generate_network(self, disjoint_reversible=False,
             stoichiometric_coefficients=False):

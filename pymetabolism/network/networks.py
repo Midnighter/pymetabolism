@@ -30,6 +30,9 @@ from ..errors import PyMetabolismError
 from .. import miscellaneous as misc
 
 
+options = misc.OptionsManager.get_instance()
+
+
 class CompoundCentricNetwork(nx.DiGraph):
     """
     """
@@ -421,7 +424,13 @@ class MetabolicNetwork(nx.DiGraph):
                     self[cmpd][rxn]["coefficient"]) for cmpd in self.pred[rxn])
             prods = dict((pymet.SBMLCompound(str(cmpd)),
                     self[rxn][cmpd]["coefficient"]) for cmpd in self.succ[rxn])
-            system.add(pymet.SBMLReaction(str(rxn), subs, prods,
-                    rxn.reversible))
+            if rxn.reversible:
+                system.add(pymet.SBMLReaction(str(rxn), subs, prods,
+                        rxn.reversible, lower_bound=-options.upper_bound,
+                        upper_bound=options.upper_bound))
+            else:
+                system.add(pymet.SBMLReaction(str(rxn), subs, prods,
+                        rxn.reversible, lower_bound=options.lower_bound,
+                        upper_bound=options.upper_bound))
         return system
 
