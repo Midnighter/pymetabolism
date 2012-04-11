@@ -9,6 +9,7 @@ Metabolic Network Generators
 
 :Authors:
     Moritz Emanuel Beber
+    Alexandra Mirela Grigore
 :Date:
     2011-07-01
 :Copyright:
@@ -20,9 +21,12 @@ Metabolic Network Generators
 import logging
 import numpy
 import numpy.random
+import scipy
+from matplotlib import *
 
 from ..metabolism import metabolism as met
 from ..network import networks as nets
+from ..network import degree_distribution as dd
 from .. import miscellaneous as misc
 
 
@@ -274,3 +278,99 @@ def random_scale_free_mn(num_compounds, num_reactions, num_reversible,
     prune_network(network)
     return network
 
+def random_normal_scale_free(num_compounds, num_reactions, num_reversible,
+                             pl_exponent, norm_std = 0.1, seed=None):
+    """
+    Creates a bipartite directed graph with a normal degree distribution for
+    the reaction nodes and a scale free degree distribution for the 
+    metabolite nodes. Adopted from the networkx implementation of
+    bipartite_configuration_model.
+
+    Parameters
+    ----------
+    num_compounds: int
+        The number of compounds that should be in the network.
+    num_reactions: int
+        The number of reactions that should be in the network.
+    num_reversible: int
+        The number of reactions that are reversible.
+    pl_exponent: float
+        The exponent of the power law degree distribution
+    norm_std: int
+        The standard deviation of the normal degree distribution
+    seed: int (optional)
+        A specific seed for the random number generator for reproducible runs.
+    """
+    # setup
+    rand_int = numpy.random.random_integers
+    rand_float = numpy.random.random_sample
+    if seed:
+        numpy.random.seed(int(seed))
+    num_compounds = int(num_compounds)
+    num_reactions = int(num_reactions)
+    num_reversible = int(num_reversible)
+    pl_exponent = float(pl_exponent)
+    norm_std = int(norm_std)
+    options = misc.OptionsManager.get_instance()
+    network = nets.MetabolicNetwork()
+    distr_mets = dd.powerlaw_sequence(num_compounds, pl_exponent)
+    distr_reacts = dd.normal_sequence(num_reactions, round(sum(distr_mets)/num_reactions), norm_std) 
+    # make the sums of the 2 degree distributions equal
+    distr_mets = dd.powerlaw_sequence(num_compounds, pl_exponent)
+    distr_reacts = dd.normal_sequence(num_reactions, round(sum(distr_mets)/num_reactions), norm_std) 
+    distr_mets = scipy.array(distr_mets, dtype = int)
+    distr_reacts = scipy.array(distr_reacts, dtype = int)
+    # make the sums of the 2 degree distributions equal
+    if sum(distr_mets) > sum(distr_reacts):
+        deg_diff = sum(distr_mets) - sum(distr_reacts)
+        deg_diff = abs(deg_diff)
+        while not deg_diff == 0:
+            to_subtract_from = [n for n,i in enumerate(distr_mets) if i>5]
+            h = to_subtract_from[numpy.random.random_integers(0, len(to_subtract_from)-1)]
+            distr_mets[h] -= 1
+            deg_diff -= 1
+    elif sum(distr_mets) < sum(distr_reacts):
+        deg_diff = sum(distr_mets) - sum(distr_reacts)
+        deg_diff = abs(deg_diff)
+        while not deg_diff == 0:
+            h = numpy.random.random_integers(0, num_compounds-1)
+            distr_mets[h] += 1
+            deg_diff -= 1
+    # add metabolite nodes + build lists of degree-repeated vertices
+    print(distr_mets)
+    print("--------")
+    print(distr_reacts)
+    print([n for n,i in enumerate(distr_reacts) if i<0])
+    stubs = []
+    for i in range(num_compounds):
+        new_met = met.BasicCompound("%s%d" % (options.compound_prefix, i))
+        network.add_node(new_met)
+        stubs.extend([distr_mets[i]*[new_met]])
+    astubs = []
+    astubs = [x for subseq in stubs for x in subseq]        
+    # add reaction  nodes + build lists of degree-repeated vertices
+    stubs = []
+    for i in range(num_reversible):
+        new_react = met.BasicReaction("%s%d" % (options.reaction_prefix, i),reversible=True)
+        network.add_node(new_react)
+        stubs.extend([distr_reacts[i]*[new_react]])
+    for i in range(num_reversible, num_reactions):
+        new_react = met.BasicReaction("%s%d" % (options.reaction_prefix, i))
+        network.add_node(new_react)
+        stubs.extend([distr_reacts[i]*[new_react]])
+    bstubs=[]
+    bstubs=[x for subseq in stubs for x in subseq]
+    # shuffle lists
+    scipy.random.shuffle(astubs)
+    scipy.random.shuffle(bstubs)
+    # add edges
+    for i in range(sum(distr_mets)):
+        if rand_float() < 0.5:
+            network.add_edge(astubs[i], bstubs[i], coefficient=0)
+            logger.debug("added link %s -> %s", str(astubs[i]), str(bstubs[i]))
+        else:
+            network.add_edge(bstubs[i], astubs[i], coefficient=0)
+            logger.debug("added link %s -> %s", str(bstubs[i]), str(astubs[i]))
+    # clean up
+    prune_network(network)
+    return network
