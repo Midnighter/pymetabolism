@@ -313,14 +313,16 @@ def _grb_add_reaction(self, reaction, coefficients=None, lb=None, ub=None):
             ub_iter = ub
         else:
             ub_iter = itertools.repeat(ub)
-        if not hasattr(coefficients, "__iter__"):
-            coefficients = itertools.repeat(coefficients)
         changes = [self._add_reaction(rxn, lb, ub) for (rxn, lb, ub)\
                 in itertools.izip(reaction, lb_iter, ub_iter)]
         if any(changes):
             self._model.update()
         if coefficients is None:
             return
+        # need to find out if we are dealing with a nested list or not
+        if not (isinstance(coefficients, list) and isinstance(coefficients[0],
+                list)):
+            coefficients = itertools.repeat(coefficients)
         for (rxn, coeff_iter) in itertools.izip(reaction, coefficients):
             changes = [self._add_compound(pair[0]) for pair in coeff_iter]
             if any(changes):
