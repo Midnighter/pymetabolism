@@ -68,10 +68,4 @@ def plot_normal(sequence,bins=100):
     P.setp(patches, 'facecolor', 'g', 'alpha', 0.75)
     #show()
     
-#blabla=normal_sequence(1000000,7,2)
-#bla=powerlaw_sequence(1000000,3)
-#a1=P.subplot(1,2,1)
-#plot_normal(blabla,150)
-#a2=P.subplot(1,2,2)
-#plot_powerlaw(bla,150)
-#P.show()
+
