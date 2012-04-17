@@ -22,7 +22,6 @@ import logging
 import numpy
 import numpy.random
 import scipy
-from matplotlib import *
 
 from ..metabolism import metabolism as met
 from ..network import networks as nets
@@ -302,7 +301,6 @@ def random_normal_scale_free(num_compounds, num_reactions, num_reversible,
         A specific seed for the random number generator for reproducible runs.
     """
     # setup
-    rand_int = numpy.random.random_integers
     rand_float = numpy.random.random_sample
     if seed:
         numpy.random.seed(int(seed))
@@ -314,10 +312,10 @@ def random_normal_scale_free(num_compounds, num_reactions, num_reversible,
     options = misc.OptionsManager.get_instance()
     network = nets.MetabolicNetwork()
     distr_mets = dd.powerlaw_sequence(num_compounds, pl_exponent)
-    distr_reacts = dd.normal_sequence(num_reactions, round(sum(distr_mets)/num_reactions), norm_std) 
+    distr_reacts = dd.normal_sequence(num_reactions, round(sum(distr_mets)/num_reactions), norm_std)
     # make the sums of the 2 degree distributions equal
     distr_mets = dd.powerlaw_sequence(num_compounds, pl_exponent)
-    distr_reacts = dd.normal_sequence(num_reactions, round(sum(distr_mets)/num_reactions), norm_std) 
+    distr_reacts = dd.normal_sequence(num_reactions, round(sum(distr_mets)/num_reactions), norm_std)
     distr_mets = scipy.array(distr_mets, dtype = int)
     distr_reacts = scipy.array(distr_reacts, dtype = int)
     # make the sums of the 2 degree distributions equal
@@ -337,17 +335,12 @@ def random_normal_scale_free(num_compounds, num_reactions, num_reversible,
             distr_mets[h] += 1
             deg_diff -= 1
     # add metabolite nodes + build lists of degree-repeated vertices
-    print(distr_mets)
-    print("--------")
-    print(distr_reacts)
-    print([n for n,i in enumerate(distr_reacts) if i<0])
     stubs = []
     for i in range(num_compounds):
         new_met = met.BasicCompound("%s%d" % (options.compound_prefix, i))
         network.add_node(new_met)
         stubs.extend([distr_mets[i]*[new_met]])
-    astubs = []
-    astubs = [x for subseq in stubs for x in subseq]        
+    astubs = [x for subseq in stubs for x in subseq]
     # add reaction  nodes + build lists of degree-repeated vertices
     stubs = []
     for i in range(num_reversible):

@@ -644,7 +644,8 @@ class MetabolicSystem(BasicMetabolicComponent):
         self._transpose.add_reaction(self.compounds, lb=1.0, ub=numpy.inf)
         # constrain mass by stoichiometric coefficients
         for rxn in self.reactions:
-            self._transpose.add_compound(rxn, rxn.compounds(True))
+            self._transpose.add_compound(rxn, list(rxn.compounds(True)))
+#            logger.debug(list(self._transpose.iter_reactions(rxn, True)))
         # objective is over all compound masses
         self._transpose.set_objective_reaction(self.compounds, 1.0)
 
@@ -672,6 +673,7 @@ class MetabolicSystem(BasicMetabolicComponent):
            Bioinformatics 24, no. 19 (2008): 2245.
         """
         self._setup_transpose()
+        self._transpose._model.write("second.lp")
         self._transpose.fba(maximize=False)
         try:
             weights = dict(self._transpose.iter_flux())

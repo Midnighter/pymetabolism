@@ -196,18 +196,22 @@ def make_consistent_stoichiometry(network, coefficients, mass_vector=None):
         model.modify_reaction_bounds(compounds, lb=1.0)
         model.modify_compound_coefficients("reaction", temp_coeff)
 
+#        logger.debug(list(model.iter_reactions("reaction", coefficients=True)))
+#        logger.debug(list(model.iter_reaction_bounds(compounds)))
+
+        # optimize call within fba does not update model correctly
+        model._model.reset()
         model.fba(maximize=False)
         try:
-            coeffs = dict(model.iter_flux())
+            for cmpd in network.pred[reaction]:
+                network[cmpd][reaction]["coefficient"] = model.iter_flux(cmpd)
+            for cmpd in network.succ[reaction]:
+                network[reaction][cmpd]["coefficient"] = model.iter_flux(cmpd)
         except PyMetabolismError as err:
             logger.debug(str(err))
             raise PyMetabolismError("Reaction '%s' cannot be balanced with the"\
                 " given mass vector.", str(reaction))
 
-        for cmpd in network.pred[reaction]:
-            network[cmpd][reaction]["coefficient"] = coeffs[cmpd]
-        for cmpd in network.succ[reaction]:
-            network[reaction][cmpd]["coefficient"] = coeffs[cmpd]
 
     if not mass_vector:
         # the default masses for compounds:

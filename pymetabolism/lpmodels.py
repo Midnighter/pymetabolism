@@ -566,6 +566,7 @@ def _grb_set_objective_reaction(self, reaction, factor):
             self._objective[rxn] = factor
     else:
         self._objective[reaction] = factor
+    self._reset_objective()
 
 def _grb__var2reaction(self, var):
     return self._var2rxn[var] if var in self._var2rxn else self._var2rev[var]
@@ -617,6 +618,7 @@ def _grb__reset_objective(self):
             var = self._rev2var[rxn]
             var.obj = factor
             var.lb = self._tmp_lb.get(var, var.lb)
+    self._model.update()
 
 def _grb_fba(self, maximize=True):
     self._reset_objective()
