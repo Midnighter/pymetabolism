@@ -336,11 +336,8 @@ def random_normal_scale_free(num_compounds, num_reactions, num_reversible,
             h = numpy.random.random_integers(0, num_compounds-1)
             distr_mets[h] += 1
             deg_diff -= 1
+    
     # add metabolite nodes + build lists of degree-repeated vertices
-    print(distr_mets)
-    print("--------")
-    print(distr_reacts)
-    print([n for n,i in enumerate(distr_reacts) if i<0])
     stubs = []
     for i in range(num_compounds):
         new_met = met.BasicCompound("%s%d" % (options.compound_prefix, i))
@@ -373,4 +370,4 @@ def random_normal_scale_free(num_compounds, num_reactions, num_reversible,
             logger.debug("added link %s -> %s", str(bstubs[i]), str(astubs[i]))
     # clean up
     prune_network(network)
-    return network
+    return distr_mets, distr_reacts, network
