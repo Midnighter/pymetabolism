@@ -33,7 +33,7 @@ def powerlaw_sequence(n,expo=2.0):
     expo: float
         The exponent of the power law sequence
     """
-    return [round(random.paretovariate(expo-1)) for i in xrange(n)]
+    return numpy.random.zipf(expo,n)
     
 def normal_sequence(n,mu,sigma):
     """
@@ -48,24 +48,24 @@ def normal_sequence(n,mu,sigma):
     sigma: int
         The standard deviation of the normal distribution
     """
-    return [round(random.gauss(mu,sigma)) for i in xrange(n)]
+    return numpy.random.normal(mu,sigma,n)
     
-def plot_powerlaw(sequence,bins=100):
-    """
-    Plots the power law degree distribution in a loglog plot
-    """
-    h,be = numpy.histogram(sequence,bins)
-    #figure()
-    P.loglog(h)
-    #show()
-    
-def plot_normal(sequence,bins=100):
-    """
-    Plots the normal degree distribution
-    """
-    #figure()    
-    h, bins, patches = P.hist(blabla, 100, normed=1, histtype='stepfilled')
-    P.setp(patches, 'facecolor', 'g', 'alpha', 0.75)
-    #show()
+#def plot_powerlaw(sequence,bins=10):
+#    """
+#    Plots the power law degree distribution in a loglog plot
+#    """
+#    h,be = numpy.histogram(sequence,bins)
+#    P.figure()
+#    P.loglog(h)
+#    P.show()
+#    
+#def plot_normal(sequence,bins=10):
+#    """
+#    Plots the normal degree distribution
+#    """
+#    P.figure()    
+#    h, bins, patches = P.hist(sequence, bins, normed=1, histtype='stepfilled')
+#    P.setp(patches, 'facecolor', 'g', 'alpha', 0.75)
+#    P.show()
     
 
