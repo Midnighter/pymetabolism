@@ -673,7 +673,6 @@ class MetabolicSystem(BasicMetabolicComponent):
            Bioinformatics 24, no. 19 (2008): 2245.
         """
         self._setup_transpose()
-        self._transpose._model.write("second.lp")
         self._transpose.fba(maximize=False)
         try:
             weights = dict(self._transpose.iter_flux())

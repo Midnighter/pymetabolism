@@ -98,6 +98,7 @@ def _grb_populate(attrs):
     attrs["__init__"] = _grb___init__
 #    attrs["__copy__"] = _grb___copy__
 #    attrs["__deepcopy__"] = _grb___deepcopy__
+    attrs["__str__"] = _grb___str__
     attrs["_add_compound"] = _grb__add_compound
     attrs["_change_participation"] = _grb__change_participation
     attrs["_make_binary"] = _grb__make_binary
@@ -112,6 +113,7 @@ def _grb_populate(attrs):
     attrs["_add_drain"] = _grb__add_drain
     attrs["_var2reaction"] = _grb__var2reaction
     attrs["_reset_objective"] = _grb__reset_objective
+    attrs["_changed_objective"] = _grb__changed_objective
     attrs["_status"] = _grb__status
     attrs["_flux"] = _grb__flux
     attrs["_reduced_cost"] = _grb__reduced_cost
@@ -148,6 +150,26 @@ def _grb___init__(self, name):
 #def _grb_copy(self):
 #    # TODO
 #    return self.__deepcopy__()
+
+def _grb___str__(self):
+    self._model.update()
+    message = list()
+    message.append("Objective:")
+    lin_expr = self._model.getObjective()
+    msg = ["%f %s" % (lin_expr.getCoeff(i), lin_expr.getVar(i).varName) for
+            i in range(lin_expr.size())]
+    message.append(" + ".join(msg))
+    message.append("Constraints:")
+    for cnstrnt in self._model.getConstrs():
+        lin_expr = self._model.getRow(cnstrnt)
+        msg = ["%f %s" % (lin_expr.getCoeff(i), lin_expr.getVar(i).varName) for
+                i in range(lin_expr.size())]
+        message.append("%s: %s = %s" % (cnstrnt.constrName, " + ".join(msg),
+            str(cnstrnt.rhs)))
+    message.append("Bounds:")
+    for var in self._model.getVars():
+        message.append("%f <= %s <= %f" % (var.lb, var.varName, var.ub))
+    return "\n".join(message)
 
 def _grb__add_compound(self, compound):
     if compound in self._cmpd2cnstrnt:
@@ -191,8 +213,7 @@ def _grb_add_compound(self, compound, coefficients=None):
             self._change_participation(compound, coefficients)
 
 def _grb_iter_compounds(self, reaction=None, coefficients=False):
-    # updating is the only way currently to return newly added information
-    self._model.update()
+    # reports model data (may require update to be current)
     if reaction is None:
         return self._cmpd2cnstrnt.iterkeys()
     column = self._model.getCol(self._rxn2var[reaction])
@@ -213,7 +234,11 @@ def _grb_modify_compound_coefficients(self, compound, coefficients):
         self._change_participation(compound, coefficients)
 
 def _grb_free_compound(self, compound):
-    pass
+    cnstrnt = self._cmpd2cnstrnt[compound]
+    lin_expr = self._model.getRow(cnstrnt)
+    for i in range(lin_expr.size()):
+        var = lin_expr.getVar(i)
+        self._model.chgCoeff(cnstrnt, var, 0.0)
 
 def _grb_knockout_compound(self, compound):
     cnstrnt = self._cmpd2cnstrnt[compound]
@@ -336,14 +361,13 @@ def _grb_add_reaction(self, reaction, coefficients=None, lb=None, ub=None):
             self._model.update()
             if coefficients is None:
                 return
-            changes = [self._add_compound(pair[0]) for pair in coeff_iter]
+            changes = [self._add_compound(pair[0]) for pair in coefficients]
             if any(changes):
                 self._model.update()
-            self._change_coefficients(rxn, coeff_iter)
+            self._change_coefficients(reaction, coefficients)
 
 def _grb_iter_reactions(self, compound=None, coefficients=False):
-    # updating is the only way currently to return newly added information
-    self._model.update()
+    # reports model data (may require update to be current)
     if not compound:
         return self._rxn2var.iterkeys()
     lin_expr = self._model.getRow(self._cmpd2cnstrnt[compound])
@@ -412,6 +436,8 @@ def _grb_modify_reaction_bounds(self, reaction, lb=None, ub=None):
             self._adjust_bounds(rxn, lb, ub)
     else:
         self._adjust_bounds(reaction, lb, ub)
+    # for some reasons lazy updating of bounds does not work
+    self._model.update()
 
 def _grb__bounds(self, reaction):
     var = self._rxn2var[reaction]
@@ -422,8 +448,7 @@ def _grb__bounds(self, reaction):
         return (var.lb, var.ub)
 
 def _grb_iter_reaction_bounds(self, reaction=None):
-    # updating is the only way currently to return newly added information
-    self._model.update()
+    # reports model data (may require update to be current)
     # we rely on reversible reactions being treated in unison
     if reaction is None:
         reaction = self._rxn2var.iterkeys()
@@ -607,21 +632,35 @@ def _grb_set_medium(self, compound, lb=None, ub=None):
         var.ub = ub
 
 def _grb__reset_objective(self):
-    lin_expr = self._model.getObjective()
-    for i in range(lin_expr.size()):
-        var = lin_expr.getVar(i).obj = 0.0
+    objective = list()
     for (rxn, factor) in self._objective.iteritems():
         var = self._rxn2var[rxn]
-        var.obj = factor
         var.lb = self._tmp_lb.get(var, var.lb)
+        objective.append((factor, var))
         if rxn.reversible:
             var = self._rev2var[rxn]
-            var.obj = factor
-            var.lb = self._tmp_lb.get(var, var.lb)
-    self._model.update()
+            var.lb = self._tmp_lb.pop(var, var.lb)
+            objective.append((factor, var))
+    if objective:
+        self._model.setObjective(self._grb.LinExpr(objective))
+
+def _grb__changed_objective(self):
+    # test whether we need to reset the objective, because of parsimonious_fba
+    # before
+    lin_expr = self._model.getObjective()
+    current = set([lin_expr.getVar(i) for i in range(lin_expr.size())])
+    objective = set()
+    for rxn in self._objective.iterkeys():
+        var = self._rxn2var[rxn]
+        objective.add(var)
+        if rxn.reversible:
+            var = self._rev2var[rxn]
+            objective.add(var)
+    return current != objective
 
 def _grb_fba(self, maximize=True):
-    self._reset_objective()
+    if self._changed_objective():
+        self._reset_objective()
     if maximize:
         self._model.modelSense = self._grb.GRB.MAXIMIZE
     else:
@@ -629,21 +668,26 @@ def _grb_fba(self, maximize=True):
     self._model.optimize()
 
 def _grb_parsimonious_fba(self):
-    self._reset_objective()
+    if self._changed_objective():
+        self._reset_objective()
     self._model.modelSense = self._grb.GRB.MAXIMIZE
     self._model.optimize()
     # _status should catch all problems (monitor this)
     self._status()
     lin_expr = self._model.getObjective()
     objective = set([lin_expr.getVar(i) for i in range(lin_expr.size())])
-    for (i, var) in enumerate(objective):
+    for var in objective:
+        var = lin_expr.getVar(i)
         self._tmp_lb[var] = var.lb
         var.lb = var.x
-        var.obj = 0.0
+    # now minimize all other variables
+    minimize = list()
     for var in itertools.chain(self._rxn2var.itervalues(),
             self._rev2var.itervalues()):
         if not var in objective:
-            var.obj = 1.0
+            minimize.append((1.0, var))
+    if minimize:
+        self._model.setObjective(self._grb.LinExpr(minimize))
     self._model.modelSense = self._grb.GRB.MINIMIZE
     self._model.optimize()
 
