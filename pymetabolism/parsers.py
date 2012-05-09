@@ -42,15 +42,12 @@ class SBMLParser(Singleton):
     A class implementing methods for parsing a SBML model
     """
 
-    _sbml = None
+    _sbml = False
 
     def __init__(self):
         if not self.__class__._sbml:
-            try:
-                self.__class__._sbml = __import__(name="libsbml")
-            except ImportError:
-                raise ImportError("libsbml is required for this functionality,"\
-                        " see http://sbml.org/Software/libSBML")
+            self.__class__._sbml = misc.load_module("libsbml", "SBML",
+                    "http://sbml.org/Software/libSBML")
         object.__init__(self)
         self._options = misc.OptionsManager.get_instance()
 

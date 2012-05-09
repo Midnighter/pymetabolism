@@ -21,6 +21,7 @@ Library Miscellanea
 __all__ = ["OptionsManager"]
 
 
+import sys
 import logging
 
 from .singletonmixin import Singleton
@@ -49,24 +50,28 @@ class OptionsManager(Singleton):
         self.reversible_suffix = "_Rev"
         self.compartments = {"_c": "Cytosol", "_e": "Extra_organism",
                 "_b": "Exchange", "_p": "Periplasm"}
-        self.parser = "SBML"
         self.lp_solver = "gurobi"
         self.lower_bound = 0.0
         self.upper_bound = 1000.0
         self.numeric_threshold = 1E-09
         self.num_proc = 1
 
-    def get_parser(self):
-        """
-        Returns
-        -------
-        A parser of the correct variant for the current parser attribute type.
-        """
-        from . import parsers
-        if self.parser.lower() == "sbml":
-            return parsers.SBMLParser()
-        else:
-            raise NotImplementedError("No other parsers are supported at"\
-            " the moment")
+def load_module(module, name=False, url=False):
+    if not name:
+        name = module
+    if not sys.modules.has_key(module):
+        try:
+            __import__(module)
+        except ImportError:
+            msg = list()
+            msg.append(u"%s is required for this functionality." % name)
+            msg.append(u"Please specify a different external dependency in the")
+            msg.append(u"options or double-check your installation and necessary")
+            msg.append(u"Python bindings.")
+            if url:
+                msg.append(u"Please see %s for detailed installation" % url)
+                msg.append(u"instructions.")
+            raise ImportError(" ".join(msg))
+    return sys.modules[module]
 
 

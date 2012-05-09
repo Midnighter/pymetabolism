@@ -20,7 +20,6 @@ LP Solver Interfaces
 """
 
 
-import sys
 import os
 import itertools
 import copy
@@ -52,6 +51,14 @@ class MetaLPModelFacade(type):
         """
         if options.lp_solver.lower() == "gurobi":
             _grb_populate(dct)
+        elif options.lp_solver.lower() == "cvxopt":
+            _cvx_populate(dct)
+        elif options.lp_solver.lower() == "glpk":
+            _cvx_populate(dct)
+            _cvx_glpk(dct)
+        elif options.lp_solver.lower() == "mosek":
+            _cvx_populate(dct)
+            _cvx_mosek(dct)
         return super(MetaLPModelFacade, mcls).__new__(mcls, name, bases, dct)
 
 
@@ -61,17 +68,7 @@ class MetaLPModelFacade(type):
 
 
 def _grb_populate(attrs):
-    name = "gurobipy"
-    if not sys.modules.has_key(name):
-        try:
-            __import__(name)
-        except ImportError:
-            raise ImportError(u"Gurobi with python bindings is required for "\
-                    "this functionality, please supply a different solver in "\
-                    "the options or visit http://www.gurobi.com/ for "\
-                    "detailed installation instructions.")
-
-    grb = sys.modules[name]
+    grb = misc.load_module("gurobipy", "Gurobi", "http://www.gurobi.com/")
     # suppress reports to stdout
     grb.setParam("OutputFlag", 0)
     # deal with Gurobi's annoying log file
@@ -543,6 +540,19 @@ def _grb_add_compound_source(self, compound, lb=None, ub=None):
             var = self._sources[compound]
             self._add_transport(compound, var, 1.0)
 
+def _grb_iter_sources(self):
+    return self._sources.iterkeys()
+
+def _grb_delete_source(self, compound):
+    if hasattr(compound, "__iter__"):
+        for cmpd in compound:
+            var = self._sources.pop(cmpd)
+            self._model.remove(var)
+    else:
+        var = self._sources.pop(compound)
+        self._model.remove(var)
+    self._model.update()
+
 def _grb__add_drain(self, compound, lb, ub):
     if compound in self._drains:
         return False
@@ -578,6 +588,19 @@ def _grb_add_compound_drain(self, compound, lb=None, ub=None):
             self._model.update()
             var = self._drains[compound]
             self._add_transport(compound, var, -1.0)
+
+def _grb_iter_drains(self):
+    return self._drains.iterkeys()
+
+def _grb_delete_drain(self, compound):
+    if hasattr(compound, "__iter__"):
+        for cmpd in compound:
+            var = self._drains.pop(cmpd)
+            self._model.remove(var)
+    else:
+        var = self._drains.pop(compound)
+        self._model.remove(var)
+    self._model.update()
 
 def _grb_set_objective_reaction(self, reaction, factor):
     # we allow for lazy updating of the model here (better not be a bug)
@@ -784,4 +807,58 @@ def _grb_iter_shadow_price(self, compound=None):
 def _grb_export2lp(self, filename):
     filename += ".lp"
     self._model.write(filename)
+
+
+################################################################################
+# CVXOPT Facade
+################################################################################
+
+
+def _cvx_populate(attrs):
+    cvxopt = misc.load_module("cvxopt", "CVXOPT",
+            "http://abel.ee.ucla.edu/cvxopt/")
+    # set cvxopt solver options
+    cvxopt.solvers.options["show_progress"] = False
+    cvxopt.solvers.options["feastol"] = options.numeric_threshold
+
+    # set class attributes
+    attrs["_cvx"] = cvxopt
+    for (key, value) in attrs.iteritems():
+        if key.startswith("_"):
+            continue
+        try:
+            attrs[key] = eval("_cvx_" + key)
+            attrs[key].__doc__ = value.__doc__
+        except NameError:
+            pass
+
+
+################################################################################
+# GLPK Facade
+################################################################################
+
+
+def _cvx_glpk(attrs):
+    cvxopt = misc.load_module("cvxopt", "CVXOPT",
+            "http://abel.ee.ucla.edu/cvxopt/")
+    misc.load_module("cvxopt.glpk", "CVXOPT-GLPK",
+            "http://abel.ee.ucla.edu/cvxopt/")
+
+    cvxopt.solvers.options['LPX_K_MSGLEV'] = 0
+
+
+################################################################################
+# MOSEK Facade
+################################################################################
+
+
+def _cvx_mosek(attrs):
+    cvxopt = misc.load_module("cvxopt", "CVXOPT",
+            "http://abel.ee.ucla.edu/cvxopt/")
+    misc.load_module("cvxopt.msk", "CVXOPT-MOSEK",
+            "http://abel.ee.ucla.edu/cvxopt/")
+    mosek = misc.load_module("mosek", "CVXOPT-MOSEK",
+            "http://abel.ee.ucla.edu/cvxopt/")
+
+    cvxopt.solvers.options['MOSEK'] = {mosek.iparam.log: 0}
 

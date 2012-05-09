@@ -55,7 +55,11 @@ class PyMetabolismError(StandardError):
         try:
             self.strerror = msg % args
         except TypeError:
-            self.strerror = msg.format(*args, **kw_args)
+            try:
+                self.strerror = msg % kw_args
+            except TypeError:
+                self.strerror = msg.format(*args, **kw_args)
+        pass
 
     def __str__(self):
         """

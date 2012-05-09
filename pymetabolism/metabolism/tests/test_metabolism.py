@@ -56,7 +56,7 @@ def check__repr__(instances):
     for instance in instances:
         cls = instance.__class__
         nt.assert_equal(repr(instance), "<%s.%s, %d>" % (cls.__module__,
-            cls.__name__, instance._index))
+            cls.__name__, id(instance)))
 
 def check_sbml_cls(cls):
     if cls.__name__ == "SBMLCompartment":

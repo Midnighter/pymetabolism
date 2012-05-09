@@ -30,9 +30,3 @@ class TestOptionsManager(object):
         object.__init__(self)
         self.obj = OptionsManager.get_instance()
 
-    def test_get_parser(self):
-        parser = self.obj.get_parser()
-        nt.assert_true(isinstance(parser, SBMLParser))
-        self.obj.parser = "snafu"
-        nt.assert_raises(NotImplementedError, self.obj.get_parser)
-

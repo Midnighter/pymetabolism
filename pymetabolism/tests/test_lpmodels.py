@@ -26,17 +26,6 @@ from .. import lpmodels
 from ..miscellaneous import OptionsManager
 
 
-class TestGurobiFacade(object):
-
-    def __init__(self):
-        self.options = OptionsManager.get_instance()
-        self.options.reversible_suffix = "r"
-        self.parser = self.options.get_parser()
-        self.system = self.parser.parse(os.path.join(os.path.dirname(__file__),
-                "data", "Ec_core_flux1.xml"))
-
-    def test_model(self):
-        model = self.system.generate_fba_model()
-        print model.fba()
-        print model.get_objective_value()
+def test_nothing():
+    pass
 

@@ -309,7 +309,18 @@ class FBAModel(object):
         Returns
         -------
         iterator:
-            Iterator over all sources.
+            Iterator over all compounds that have sources.
+        """
+        raise self._error
+
+    def delete_source(self, compound):
+        """
+        Remove an existing source of a compound or compounds from the model.
+
+        Parameters
+        ----------
+        compound: iterable or `BasicCompound`
+            A single `BasicCompound` instance or an iterable with multiple ones.
         """
         raise self._error
 
@@ -335,7 +346,18 @@ class FBAModel(object):
         Returns
         -------
         iterator:
-            Iterator over all drains.
+            Iterator over all compounds that have drains.
+        """
+        raise self._error
+
+    def delete_drain(self, compound):
+        """
+        Remove an existing drain of a compound or compounds from the model.
+
+        Parameters
+        ----------
+        compound: iterable or `BasicCompound`
+            A single `BasicCompound` instance or an iterable with multiple ones.
         """
         raise self._error
 

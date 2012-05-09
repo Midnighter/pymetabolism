@@ -388,7 +388,7 @@ class SBMLReaction(BasicReaction):
         self.upper_bound = upper_bound
         self.objective_coefficient = objective_coefficient
         self.flux_value = flux_value
-        self._consistency_check()
+#        self._consistency_check()
 
     def __contains__(self, compound):
         """

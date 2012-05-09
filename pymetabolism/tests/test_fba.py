@@ -20,6 +20,7 @@ Flux Balance Analysis Model
 """
 
 
+import sys
 import os
 import pymetabolism
 import nose.tools as nt
@@ -28,7 +29,8 @@ from glob import glob
 
 
 def setup(module):
-    files = glob(os.path.join(os.path.dirname(__file__), "data", "*.xml"))
+#    files = glob(os.path.join(os.path.dirname(__file__), "data", "*.xml"))
+    files = [os.path.join(os.path.dirname(__file__), "data", "Ec_core_flux1.xml")]
     module.systems = [pymetabolism.parse(filename) for filename in files]
 
 def teardown(module):
@@ -47,9 +49,19 @@ class TestFBAModel(object):
     def __init__(self):
         self.options = pymetabolism.OptionsManager.get_instance()
         self.options.reversible_suffix = "r"
-        self.parser = self.options.get_parser()
-        self.system = self.parser.parse()
-        (self.model, self.known_fluxes) = self.system.get_lp_model()
+
+    def test_models(self):
+        for system in sys.modules[__name__].systems:
+            (model, known_fluxes) =\
+                    system.generate_fba_model(fluxes=True)
+            exchange = pymetabolism.SBMLCompartment.get_instance("Exchange")
+            for cmpd in model.iter_compounds():
+                if cmpd in exchange:
+                    model.add_compound_source(cmpd, ub=1000)
+                    model.add_compound_drain(cmpd, ub=1000)
+            model.fba()
+            for (rxn, flux) in model.iter_flux():
+                nt.assert_almost_equal(flux, known_fluxes[rxn], places=6)
 
 #    def test_knock_out_reaction(self):
 #        """Tests if a reaction is correctly constrained to zero flux"""
