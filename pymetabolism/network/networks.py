@@ -22,6 +22,8 @@ __all__ = ["CompoundCentricNetwork", "CompoundCentricMultiNetwork",
         "ReactionCentricNetwork", "ReactionCentricMultiNetwork",
         "MetabolicNetwork"]
 
+import logging
+import re
 import itertools
 import networkx as nx
 
@@ -29,6 +31,9 @@ from ..metabolism import metabolism as pymet
 from ..errors import PyMetabolismError
 from .. import miscellaneous as misc
 
+
+logger = logging.getLogger(__name__)
+logger.addHandler(misc.NullHandler())
 
 options = misc.OptionsManager.get_instance()
 
@@ -249,6 +254,91 @@ class MetabolicNetwork(nx.DiGraph):
             for cmpd in self.successors_iter(rxn):
                 new_edge(rxn, cmpd)
         return template
+
+    def read_kegg(self, organism, wsdl="http://soap.genome.jp/KEGG.wsdl",
+            browse=10):
+        """
+        Requires SOAPpy and an active internet connection.
+        """
+        soap_py = misc.load_module("SOAPpy",
+                url="http://pywebsvcs.sourceforge.net/")
+        # establish connection to DBGET server
+        serv = soap_py.WSDL.Proxy(wsdl)
+        # find appropriate organism
+        # require user choice here, too many options
+        choices = serv.bfind("genome " + organism)
+        choices = [choice for choice in choices.split("\n") if choice]
+        start = 0
+        end = start + browse
+        length = len(choices)
+        searching = True
+        while start < length and searching:
+            msg = [""]
+            msg.append("Showing organisms %d-%d of %d, please choose an index:"\
+                    % (start, end - 1, length))
+            msg.append("")
+            for i in range(start, end):
+                msg.append("[%d] %s" % (i, choices[i]))
+            if end < length:
+                msg.append("")
+                msg.append("Type any non-integer to show the next %d organisms."\
+                        % min(length - end, browse))
+            msg.append("")
+            try:
+                selection = int(raw_input("\n".join(msg)))
+            except ValueError:
+                start = end
+                end = min(length, end + browse)
+            else:
+                while True:
+                    try:
+                        choice = choices[selection]
+                    except IndexError:
+                        try:
+                            selection = int(raw_input("Chosen index is outside"\
+                                    " the allowed range, try again:\n"))
+                        except ValueError:
+                            pass
+                    else:
+                        searching = False
+                        break
+        logger.info("Please be patient, this will take a few minutes.")
+        pattern = re.compile(r"genome:T\d+ (\w+),")
+        mobj = pattern.match(choice)
+        organism = mobj.group(1)
+        pathways = serv.list_pathways(organism)
+        logger.info("KEGG contains %d pathways for this organism.",
+                len(pathways))
+        pattern = re.compile(r"\w+")
+        reactions = set()
+        for path in pathways:
+            reactions.update(serv.get_reactions_by_pathway(path.entry_id))
+        logger.info("The pathways contain %d unique reactions", len(reactions))
+        for rxn in reactions:
+            logger.debug(rxn)
+            info = serv.bget(rxn)
+            info = info.split("\n")
+            begin = -1
+            stop = 0
+            for (i, line) in enumerate(info):
+                if line.startswith("RPAIR"):
+                    begin = i
+                    continue
+                if begin > -1 and pattern.match(line):
+                    stop = i
+                    break
+            if begin < 0:
+                logger.warn("No reaction pair information for '%s'.", rxn)
+                continue
+            pairs = [info[begin].split()[1:]]
+            for i in range(begin + 1, stop):
+                pairs.append(info[i].split())
+            logger.debug(str(pairs))
+            reac = pymet.BasicReaction(rxn[3:], reversible=True)
+            for line in pairs:
+                (u, v) = line[1].split("_")
+                self.add_edge(pymet.BasicCompound(u), reac, rpair=line[2])
+                self.add_edge(reac, pymet.BasicCompound(v), rpair=line[2])
 
     def read_edgelist(self, path, delimiter=None, comments="#"):
         """
