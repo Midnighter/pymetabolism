@@ -287,7 +287,7 @@ class MetabolicNetwork(nx.DiGraph):
         # use a threaded approach to server querying
         tasks = Queue()
         for i in range(num_threads):
-            thrd = kegg.ThreadedKEGGFetcher(wsdl, tasks)
+            thrd = kegg.ThreadedKEGGFetcher(tasks, wsdl)
             thrd.start()
         reactions = list()
         for path in pathways:
