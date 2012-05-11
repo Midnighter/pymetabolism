@@ -29,7 +29,6 @@ import numpy
 
 from ..errors import PyMetabolismError
 from .. import miscellaneous as misc
-from ..fba import FBAModel
 
 
 logger = logging.getLogger(__name__)
@@ -634,6 +633,7 @@ class MetabolicSystem(BasicMetabolicComponent):
         stoichiometric matrix is right multiplied a vector of compound masses
         and the system is expected to conform with mass conservation laws.
         """
+        from ..fba import FBAModel
         if self._transpose and not self._modified:
             return
         self._transpose = FBAModel("transpose")
