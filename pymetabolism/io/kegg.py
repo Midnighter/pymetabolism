@@ -36,12 +36,26 @@ logger.addHandler(misc.NullHandler())
 
 class ThreadedKEGGFetcher(threading.Thread):
     """
-    docstring
+    A Thread class that fetches instructions from the queue passed to the
+    constructor and queries the given KEGG WSDL server attaching the result to a
+    given list.
+
+    Notes
+    -----
+    Requires SOAPpy and an active internet connection.
     """
-    def __init__(self, wsdl, queue, group=None, target=None, name=None, *args,
-            **kw_args):
+    def __init__(self, queue, wsdl="http://soap.genome.jp/KEGG.wsdl",
+            group=None, target=None, name=None, *args, **kw_args):
         """
-        docstring
+        Parameters
+        ----------
+        queue: Queue.Queue
+            Task queue that contains triples of a string with the function name
+            to be queried on the KEGG server, the query string, and the
+            container (list) to attach results to.
+        wsdl: str (optional)
+            URL of the KEGG WSDL server.
+        The remaining parameters are the same as for the threading.Thread class.
         """
         threading.Thread.__init__(self, group=group, target=target, name=name,
                 args=args, kwargs=kw_args)
@@ -52,7 +66,9 @@ class ThreadedKEGGFetcher(threading.Thread):
 
     def run(self):
         """
-        docstring
+        Extracts tasks from a given queue that contains triples of a string
+        with the function name to be queried on the KEGG server, the query
+        string, and the container (list) to attach results to.
         """
         while True:
             (function, item, output) = self._queue.get()
@@ -74,7 +90,26 @@ class ThreadedKEGGFetcher(threading.Thread):
 def find_organism(self, organism, wsdl="http://soap.genome.jp/KEGG.wsdl",
         browse=10):
     """
-    Requires SOAPpy and an active internet connection.
+    An interactive function that queries the KEGG Organism database and returns
+    the KEGG organism identifier of the chosen result.
+
+    Parameters
+    ----------
+    organism: str
+        Query string for the KEGG Organism database.
+    wsdl: str (optional)
+        URL of the KEGG WSDL server.
+    browse: int (optional)
+        Maximum number of results to browse at once.
+
+    Returns
+    -------
+    str:
+        The three to four letter code of the chosen organism.
+
+    Notes
+    -----
+    Requires SOAPpy and an active internet connection. Requires stdin.
     """
     # establish connection to DBGET server
     serv = SOAPpy.WSDL.Proxy(wsdl)

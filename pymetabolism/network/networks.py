@@ -258,20 +258,32 @@ class MetabolicNetwork(nx.DiGraph):
     def read_kegg(self, organism, wsdl="http://soap.genome.jp/KEGG.wsdl",
             num_threads=30):
         """
-        Requires SOAPpy and an active internet connection.
+        A threaded method that extracts reactions information from KEGG
+        pathways. Compound-reaction pairs are added as links to the network. A
+        link attribute "rpair" contains the reaction pair information "main",
+        "trans", or "leave".
 
         Parameters
         ----------
         organism: str
-            KEGG organism identifier consisting of 3-4 lower case letters.
+            KEGG Organism identifier consisting of 3-4 lower case letters.
+        wsdl: str (optional)
+            URL of the KEGG WSDL server.
+        num_threads: int
+            The number of desired simultaneous connections to the KEGG WSDL
+            server.
+
+        Notes
+        -----
+        Requires SOAPpy and an active internet connection.
         """
         from ..io import kegg
         from Queue import Queue
         # establish connection to DBGET server
         serv = kegg.SOAPpy.WSDL.Proxy(wsdl)
         pathways = serv.list_pathways(organism)
-        logger.info("KEGG contains %d pathways for this organism.",
-                len(pathways))
+        logger.info("KEGG contains %d pathways for the organism '%s'.",
+                len(pathways), organism)
         # use a threaded approach to server querying
         tasks = Queue()
         for i in range(num_threads):
@@ -287,31 +299,35 @@ class MetabolicNetwork(nx.DiGraph):
         for rxn in reactions:
             tasks.put(("bget", rxn, descriptions))
         tasks.join()
-        pattern = re.compile(r"\w+")
-        for info in descriptions:
-            info = info.split("\n")
-            name = info[0].split()[1]
-            begin = -1
-            stop = 0
-            for (i, line) in enumerate(info):
-                if line.startswith("RPAIR"):
-                    begin = i
+        try:
+            pattern = re.compile(r"\S")
+            for info in descriptions:
+                info = info.split("\n")
+                name = info[0].split()[1]
+                begin = -1
+                stop = 0
+                for (i, line) in enumerate(info):
+                    if line.startswith("RPAIR"):
+                        begin = i
+                        continue
+                    if begin > -1 and pattern.match(line):
+                        stop = i
+                        break
+                if begin < 0:
+                    logger.warn("No reaction pair information for '%s'.", name)
                     continue
-                if begin > -1 and pattern.match(line):
-                    stop = i
-                    break
-            if begin < 0:
-                logger.warn("No reaction pair information for '%s'.", name)
-                continue
-            pairs = [info[begin].split()[1:]]
-            for i in range(begin + 1, stop):
-                pairs.append(info[i].split())
-            logger.debug(str(pairs))
-            reac = pymet.BasicReaction(name, reversible=True)
-            for line in pairs:
-                (u, v) = line[1].split("_")
-                self.add_edge(pymet.BasicCompound(u), reac, rpair=line[2])
-                self.add_edge(reac, pymet.BasicCompound(v), rpair=line[2])
+                pairs = [info[begin].split()[1:]]
+                for i in range(begin + 1, stop):
+                    pairs.append(info[i].split())
+                logger.debug(str(pairs))
+                reac = pymet.BasicReaction(name, reversible=True)
+                for line in pairs:
+                    (u, v) = line[1].split("_")
+                    self.add_edge(pymet.BasicCompound(u), reac, rpair=line[2])
+                    self.add_edge(reac, pymet.BasicCompound(v), rpair=line[2])
+        except StandardError:
+            logger.debug("psssst:", exc_info=True)
+        return descriptions
 
     def read_edgelist(self, path, delimiter=None, comments="#"):
         """
