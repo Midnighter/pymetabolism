@@ -256,7 +256,7 @@ class MetabolicNetwork(nx.DiGraph):
         return template
 
     def read_kegg(self, organism, wsdl="http://soap.genome.jp/KEGG.wsdl",
-            num_threads=30):
+            num_threads=20):
         """
         A threaded method that extracts reactions information from KEGG
         pathways. Compound-reaction pairs are added as links to the network. A
