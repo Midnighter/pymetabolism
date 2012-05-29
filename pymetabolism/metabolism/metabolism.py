@@ -348,7 +348,7 @@ class SBMLReaction(BasicReaction):
     def __init__(self, identifier, substrates, products, reversible=False,
             extended_name="", synonyms=None, rate_constant=None,
             lower_bound=None, upper_bound=None, objective_coefficient=None,
-            flux_value=None, reduced_cost=None):
+            flux_value=None, reduced_cost=None, notes=False):
         """
         Parameters
         ----------
@@ -369,6 +369,8 @@ class SBMLReaction(BasicReaction):
             Additional identifiers of the reaction.
         rate_constant: float (optional)
             Unit-less specifier of the rate of the reaction at model conditions.
+        notes: dict (optional)
+            Additional notes, for example, from parsing an SBML model.
         """
         if self.__class__._memory.has_key((self.__class__, identifier)):
             return
@@ -379,14 +381,18 @@ class SBMLReaction(BasicReaction):
         self.products = products
         self.reversible = bool(reversible)
         self.synonyms = synonyms
-        try:
+        if not rate_constant is None:
             self.rate_constant = float(rate_constant)
-        except (ValueError, TypeError):
+        else:
             self.rate_constant = None
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
         self.objective_coefficient = objective_coefficient
         self.flux_value = flux_value
+        if not notes:
+            self.notes = dict()
+        else:
+            self.notes = notes
 #        self._consistency_check()
 
     def __contains__(self, compound):

@@ -22,6 +22,7 @@ import logging
 import numpy
 import numpy.random
 import scipy
+import random
 
 from ..metabolism import metabolism as met
 from ..network import networks as nets
@@ -278,7 +279,7 @@ def random_scale_free_mn(num_compounds, num_reactions, num_reversible,
     return network
 
 def random_normal_scale_free(num_compounds, num_reactions, num_reversible,
-                             pl_exponent, norm_std = 0.1, seed=None):
+                             pl_exponent_compounds,pl_exponent_reactions, seed=None):
     """
     Creates a bipartite directed graph with a normal degree distribution for
     the reaction nodes and a scale free degree distribution for the 
@@ -293,8 +294,10 @@ def random_normal_scale_free(num_compounds, num_reactions, num_reversible,
         The number of reactions that should be in the network.
     num_reversible: int
         The number of reactions that are reversible.
-    pl_exponent: float
-        The exponent of the power law degree distribution
+    pl_exponent_compounds: float
+        The exponent of the compounds power law degree distribution.
+    pl_exponent_reactions: float
+        The exponent of the reactions power law degree distribution.
     norm_std: int
         The standard deviation of the normal degree distribution
     seed: int (optional)
@@ -307,31 +310,28 @@ def random_normal_scale_free(num_compounds, num_reactions, num_reversible,
     num_compounds = int(num_compounds)
     num_reactions = int(num_reactions)
     num_reversible = int(num_reversible)
-    pl_exponent = float(pl_exponent)
-    norm_std = int(norm_std)
+    pl_exponent_compounds = float(pl_exponent_compounds)
+    pl_exponent_reactions = float(pl_exponent_reactions)
+    #norm_std = int(norm_std)
     options = misc.OptionsManager.get_instance()
     network = nets.MetabolicNetwork()
-    distr_mets = dd.powerlaw_sequence(num_compounds, pl_exponent)
-    distr_reacts = dd.normal_sequence(num_reactions, round(sum(distr_mets)/num_reactions), norm_std)
+    distr_mets=numpy.random.zipf(pl_exponent_compounds, num_compounds)
+    distr_reacts=numpy.random.zipf(pl_exponent_reactions, num_reactions)
+    #distr_reacts = numpy.random.normal(sum(distr_mets)/num_reactions, norm_std,num_reactions)
     # make the sums of the 2 degree distributions equal
-    distr_mets = dd.powerlaw_sequence(num_compounds, pl_exponent)
-    distr_reacts = dd.normal_sequence(num_reactions, round(sum(distr_mets)/num_reactions), norm_std)
     distr_mets = scipy.array(distr_mets, dtype = int)
     distr_reacts = scipy.array(distr_reacts, dtype = int)
-    # make the sums of the 2 degree distributions equal
     if sum(distr_mets) > sum(distr_reacts):
         deg_diff = sum(distr_mets) - sum(distr_reacts)
-        deg_diff = abs(deg_diff)
         while not deg_diff == 0:
-            to_subtract_from = [n for n,i in enumerate(distr_mets) if i>5]
-            h = to_subtract_from[numpy.random.random_integers(0, len(to_subtract_from)-1)]
+            to_subtract_from = [n for n,i in enumerate(distr_mets) if i>2]
+            h = to_subtract_from[random.randint(0, len(to_subtract_from)-1)]
             distr_mets[h] -= 1
             deg_diff -= 1
     elif sum(distr_mets) < sum(distr_reacts):
-        deg_diff = sum(distr_mets) - sum(distr_reacts)
-        deg_diff = abs(deg_diff)
+        deg_diff = sum(distr_reacts) - sum(distr_mets)
         while not deg_diff == 0:
-            h = numpy.random.random_integers(0, num_compounds-1)
+            h = random.randint(0, num_compounds-1)
             distr_mets[h] += 1
             deg_diff -= 1
     
@@ -367,4 +367,4 @@ def random_normal_scale_free(num_compounds, num_reactions, num_reversible,
             logger.debug("added link %s -> %s", str(bstubs[i]), str(astubs[i]))
     # clean up
     prune_network(network)
-    return distr_mets, distr_reacts, network
+    return network

@@ -123,24 +123,38 @@ class SBMLParser(Singleton):
             identifier = identifier[:-len(self._options.reversible_suffix)]
         return identifier
 
-    def _parse_reaction(self, reaction, model):
+    def _parse_reaction(self, reaction, model, note_sep=":"):
         """Able to parse entries from getListOfReactions"""
         identifier = self._strip_reaction_id(reaction.getId())
         name = reaction.getName()
+        # parse additional reaction parameters
         params = dict()
         for param in reaction.getKineticLaw().getListOfParameters():
             params[param.getId().lower()] = param.getValue()
+        # substrates' stoichiometry
         substrates = dict((self._parse_species(model.getSpecies(
             elem.getSpecies())),
             abs(elem.getStoichiometry())) for elem in
             reaction.getListOfReactants())
+        # products' stoichiometry
         products = dict((self._parse_species(model.getSpecies(
             elem.getSpecies())),
             abs(elem.getStoichiometry())) for elem in
             reaction.getListOfProducts())
+        # other information contained in notes
+        info = dict()
+        notes = reaction.getNotes()
+        for i in range(notes.getNumChildren()):
+            node = notes.getChild(i)
+            for j in range(node.getNumChildren()):
+                item = node.getChild(j).toString().split(note_sep, 1)
+                if len(item) == 2:
+                    key = item[0].strip().lower().replace(" ", "_")
+                    value = item[1].strip()
+                    info[key] = value
         return metabolism.SBMLReaction(identifier, substrates, products,
                 reversible=reaction.getReversible(), extended_name=name,
-                **params)
+                notes=info, **params)
 
 
 def _open_tar(path, **kw_args):
